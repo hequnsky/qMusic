@@ -1,0 +1,1 @@
+# qMusic ProGuard 规则（Release 默认关闭混淆，此文件预留）

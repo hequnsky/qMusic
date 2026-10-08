@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">汽水音乐</string>
+    <string name="discover">发现</string>
+    <string name="player">播放</string>
+    <string name="mine">我的</string>
+</resources>

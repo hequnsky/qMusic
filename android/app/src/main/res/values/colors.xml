@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="qmusic_accent">#FF4B4B</color>
+    <color name="qmusic_accent2">#FF8A3D</color>
+    <color name="qmusic_bg">#F7F7F9</color>
+    <color name="qmusic_text">#15161A</color>
+    <color name="qmusic_dark">#141418</color>
+    <color name="white">#FFFFFF</color>
+</resources>
