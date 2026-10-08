@@ -46,6 +46,7 @@ class DiscoverViewModel(private val repository: MusicRepository) : ViewModel() {
                     loading = false,
                 )
             } catch (e: Exception) {
+                android.util.Log.e("DiscoverViewModel", "刷新发现页失败", e)
                 _uiState.value = DiscoverUiState(
                     loading = false,
                     error = "加载失败，请确认音乐服务已启动",

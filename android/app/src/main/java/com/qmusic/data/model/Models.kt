@@ -16,7 +16,8 @@ data class Album(
     val id: Long = 0,
     val name: String = "",
     @SerialName("picUrl") val picUrl: String? = null,
-    @SerialName("pic") val pic: String? = null,
+    // 注意：歌单详情中 al.pic 是数字形式的图片 ID，而不是 URL 字符串
+    @SerialName("pic") val pic: Long? = null,
 )
 
 /**
@@ -39,7 +40,7 @@ data class Song(
     val albumObj: Album? get() = album ?: alAlbum
     val artistName: String get() = artistList.joinToString("/") { it.name }
     val albumName: String get() = albumObj?.name ?: "未知专辑"
-    val coverUrl: String? get() = albumObj?.picUrl ?: albumObj?.pic
+    val coverUrl: String? get() = albumObj?.picUrl
     val durationMs: Long get() = dt ?: duration ?: 0
 }
 
