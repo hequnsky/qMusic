@@ -1,0 +1,17 @@
+{
+  "name": "qmusic-server",
+  "version": "1.0.0",
+  "description": "qMusic 在线音乐抓取服务：基于 NeteaseCloudMusicApi，向 Android 客户端提供搜索/播放地址/歌词/歌单等接口",
+  "main": "node_modules/NeteaseCloudMusicApi/app.js",
+  "scripts": {
+    "start": "node node_modules/NeteaseCloudMusicApi/app.js",
+    "dev": "node node_modules/NeteaseCloudMusicApi/app.js"
+  },
+  "keywords": ["music", "api", "neteasemusic", "qmusic"],
+  "author": "qMusic",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "NeteaseCloudMusicApi": "^4.32.0"
+  }
+}

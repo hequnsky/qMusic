@@ -1,0 +1,29 @@
+# ---------- Node ----------
+node_modules/
+npm-debug.log*
+*.log
+
+# ---------- Android ----------
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# ---------- IDE ----------
+.idea/
+.vscode/
+*.iml
+
+# ---------- OS ----------
+Thumbs.db
+.DS_Store
+
+# ---------- 临时文件 ----------
+*.tmp
+*.bak

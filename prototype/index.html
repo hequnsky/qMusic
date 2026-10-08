@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>汽水音乐 · 高保真原型</title>
+<style>
+  :root{
+    --accent:#FF4B4B;
+    --accent2:#FF8A3D;
+    --grad:linear-gradient(135deg,#FF4B5C 0%,#FF8A3D 100%);
+    --bg:#F7F7F9;
+    --card:#FFFFFF;
+    --text:#15161A;
+    --text2:#8A8A93;
+    --line:#F0F0F2;
+    --dark:#141418;
+    --dark2:#232329;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","HarmonicOS Sans SC","Microsoft YaHei",sans-serif;
+    background:#26262b;
+    display:flex;justify-content:center;align-items:center;min-height:100vh;
+    padding:32px 16px;
+  }
+  /* ========== 手机外框 ========== */
+  .phone{
+    width:390px;height:844px;border-radius:46px;background:#0d0d0f;
+    padding:10px;box-shadow:0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06);
+    position:relative;
+  }
+  .screen{
+    position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:var(--bg);
+  }
+  /* ========== 状态栏 ========== */
+  .statusbar{
+    position:absolute;top:0;left:0;right:0;height:44px;z-index:100;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:0 22px;font-size:14px;font-weight:600;color:var(--text);
+    pointer-events:none;
+  }
+  .statusbar .time{letter-spacing:.5px;}
+  .statusbar .icons{display:flex;gap:5px;align-items:center;font-size:12px;}
+  .statusbar.dark{color:#fff;}
+
+  /* ========== 页面容器 ========== */
+  .page{
+    position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--bg);
+    display:none;padding-bottom:120px;
+  }
+  .page.active{display:block;}
+  .page::-webkit-scrollbar{display:none;}
+
+  /* ========== 发现页 ========== */
+  .discover{padding-top:58px;}
+  .topbar{
+    position:sticky;top:44px;z-index:50;display:flex;align-items:center;justify-content:space-between;
+    padding:10px 16px;background:rgba(247,247,249,.92);backdrop-filter:blur(12px);
+  }
+  .topbar .logo{font-size:19px;font-weight:800;letter-spacing:-.5px;display:flex;align-items:center;gap:6px;}
+  .topbar .logo i{
+    width:26px;height:26px;border-radius:8px;background:var(--grad);display:inline-block;
+    position:relative;
+  }
+  .topbar .logo i::after{
+    content:"♪";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:16px;font-style:normal;
+  }
+  .topbar .actions{display:flex;gap:14px;font-size:19px;color:var(--text);}
+  .topbar .actions span{cursor:pointer;}
+
+  /* Hero 每日推荐 */
+  .hero{
+    margin:6px 16px 0;border-radius:22px;padding:18px 18px 16px;color:#fff;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,#2B2D42 0%,#4A3A78 55%,#B14A8A 100%);
+    box-shadow:0 12px 28px rgba(60,40,90,.28);
+  }
+  .hero::before{
+    content:"";position:absolute;width:220px;height:220px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,255,255,.14),transparent 65%);top:-80px;right:-60px;
+  }
+  .hero .tag{
+    display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#FFD9C9;
+    background:rgba(255,255,255,.14);padding:4px 10px;border-radius:20px;margin-bottom:14px;
+  }
+  .hero .body{display:flex;align-items:center;gap:16px;}
+  .hero .cover{
+    width:104px;height:104px;border-radius:18px;flex-shrink:0;
+    background:conic-gradient(from 210deg,#FF6B6B,#FFD93D,#6BCB77,#4D96FF,#FF6B6B);
+    display:flex;align-items:center;justify-content:center;font-size:44px;color:#fff;text-shadow:0 4px 14px rgba(0,0,0,.25);
+    box-shadow:0 10px 24px rgba(0,0,0,.35);
+  }
+  .hero .meta{flex:1;min-width:0;}
+  .hero .meta .title{font-size:21px;font-weight:800;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hero .meta .artist{font-size:13px;color:rgba(255,255,255,.72);margin-top:4px;}
+  .hero .meta .desc{font-size:11px;color:rgba(255,255,255,.5);margin-top:10px;display:flex;align-items:center;gap:5px;}
+  .hero .playbtn{
+    width:52px;height:52px;border-radius:50%;background:#fff;color:#FF3B4A;display:flex;align-items:center;justify-content:center;
+    font-size:22px;box-shadow:0 8px 20px rgba(0,0,0,.25);cursor:pointer;transition:transform .15s;
+  }
+  .hero .playbtn:active{transform:scale(.92);}
+  .hero .refresh{
+    display:flex;align-items:center;justify-content:center;gap:4px;margin-top:14px;font-size:12px;color:rgba(255,255,255,.85);
+    background:rgba(255,255,255,.12);border-radius:18px;padding:7px 0;cursor:pointer;
+  }
+
+  /* 分类 chips */
+  .chips{
+    display:flex;gap:9px;padding:16px 16px 4px;overflow-x:auto;scrollbar-width:none;
+  }
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex-shrink:0;font-size:13px;color:#4A4A52;background:#fff;border:1px solid var(--line);
+    padding:7px 14px;border-radius:20px;cursor:pointer;font-weight:500;
+  }
+  .chip.on{background:var(--text);color:#fff;border-color:var(--text);font-weight:600;}
+
+  /* 区块标题 */
+  .section-title{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 16px 10px;font-size:17px;font-weight:800;color:var(--text);letter-spacing:-.2px;
+  }
+  .section-title .more{font-size:12px;color:var(--text2);font-weight:500;display:flex;align-items:center;gap:2px;}
+
+  /* 横向歌单卡片 */
+  .playlist-row{display:flex;gap:12px;padding:0 16px;overflow-x:auto;scrollbar-width:none;}
+  .playlist-row::-webkit-scrollbar{display:none;}
+  .pl-card{flex-shrink:0;width:128px;cursor:pointer;}
+  .pl-card .cover{
+    width:128px;height:128px;border-radius:16px;position:relative;overflow:hidden;
+    display:flex;align-items:flex-end;padding:8px;font-size:12px;font-weight:700;color:#fff;
+    box-shadow:0 6px 14px rgba(0,0,0,.12);
+  }
+  .pl-card .cover .count{position:absolute;top:8px;right:9px;font-size:10px;font-weight:600;color:rgba(255,255,255,.9);display:flex;align-items:center;gap:3px;}
+  .pl-card .name{font-size:12.5px;color:var(--text);margin-top:8px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
+  .c1{background:linear-gradient(135deg,#FF6B6B,#C94B7C);}
+  .c2{background:linear-gradient(135deg,#4D96FF,#5B4BC9);}
+  .c3{background:linear-gradient(135deg,#34D399,#0E9F8A);}
+  .c4{background:linear-gradient(135deg,#FBBF24,#F97316);}
+  .c5{background:linear-gradient(135deg,#A78BFA,#6D28D9);}
+  .c6{background:linear-gradient(135deg,#F472B6,#DB2777);}
+  .c7{background:linear-gradient(135deg,#38BDF8,#0369A1);}
+  .c8{background:linear-gradient(135deg,#FB923C,#C2410C);}
+
+  /* 歌曲列表 */
+  .song-list{padding:0 16px;}
+  .song-item{
+    display:flex;align-items:center;gap:12px;padding:9px 0;cursor:pointer;border-radius:12px;
+  }
+  .song-item:active{background:#F0F0F3;}
+  .song-item .cover{
+    width:46px;height:46px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-size:20px;color:#fff;position:relative;
+  }
+  .song-item .info{flex:1;min-width:0;}
+  .song-item .info .name{font-size:15px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .song-item .info .sub{font-size:12px;color:var(--text2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .song-item .playcount{font-size:11px;color:#B9B9C0;flex-shrink:0;display:flex;align-items:center;gap:3px;}
+  .song-item .more{font-size:16px;color:#B9B9C0;padding:6px;flex-shrink:0;}
+
+  /* ========== 迷你播放条 ========== */
+  .miniplayer{
+    position:absolute;left:10px;right:10px;bottom:70px;height:58px;z-index:90;
+    background:rgba(22,22,26,.92);backdrop-filter:blur(18px);border-radius:18px;
+    display:flex;align-items:center;padding:0 8px 0 8px;color:#fff;cursor:pointer;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden;
+  }
+  .miniplayer .bar{position:absolute;left:0;bottom:0;height:2px;background:linear-gradient(90deg,#FF4B5C,#FF8A3D);width:38%;}
+  .miniplayer .cover{
+    width:42px;height:42px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;
+  }
+  .miniplayer .info{flex:1;min-width:0;margin-left:10px;}
+  .miniplayer .info .name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .miniplayer .info .artist{font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .miniplayer .controls{display:flex;align-items:center;gap:2px;}
+  .miniplayer .controls .btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;}
+  .miniplayer .controls .btn.play{width:42px;height:42px;font-size:24px;}
+
+  /* ========== 底部导航 ========== */
+  .tabbar{
+    position:absolute;left:0;right:0;bottom:0;height:64px;z-index:95;
+    background:rgba(255,255,255,.96);backdrop-filter:blur(18px);
+    border-top:1px solid var(--line);
+    display:flex;align-items:stretch;padding-bottom:8px;
+  }
+  .tabbar .tab{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    font-size:10.5px;color:#9A9AA2;cursor:pointer;position:relative;font-weight:600;
+  }
+  .tabbar .tab i{font-style:normal;font-size:21px;line-height:1;}
+  .tabbar .tab.on{color:var(--text);}
+  .tabbar .tab .dot{width:4px;height:4px;border-radius:50%;background:var(--accent);position:absolute;top:8px;right:calc(50% - 16px);}
+
+  /* ========== 播放页 ========== */
+  .player{
+    background:var(--dark);color:#fff;display:none;padding-bottom:0;
+  }
+  .player.active{display:flex;flex-direction:column;}
+  .player .blur-bg{
+    position:absolute;inset:0;z-index:0;
+    background:linear-gradient(180deg,#3A1D4F 0%,#141418 60%,#141418 100%);
+  }
+  .player .blur-bg::after{
+    content:"";position:absolute;inset:0;background:
+      radial-gradient(circle at 20% 15%, rgba(255,107,107,.28), transparent 45%),
+      radial-gradient(circle at 85% 30%, rgba(77,150,255,.22), transparent 45%);
+  }
+  .player .p-top{
+    position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;
+    padding:54px 18px 8px;
+  }
+  .player .p-top .col{display:flex;align-items:center;gap:16px;}
+  .player .p-top .col .iconbtn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;cursor:pointer;border-radius:50%;}
+  .player .p-top .col .iconbtn:active{background:rgba(255,255,255,.12);}
+  .player .p-top .title{font-size:14px;font-weight:600;}
+  .player .p-top .subtitle{font-size:11px;color:rgba(255,255,255,.5);text-align:center;margin-top:2px;}
+
+  .player .p-stage{
+    position:relative;z-index:2;flex:1;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;padding:0 30px;
+  }
+  .player .disc-wrap{position:relative;width:300px;height:300px;display:flex;align-items:center;justify-content:center;}
+  .player .disc-ring{
+    position:absolute;width:300px;height:300px;border-radius:50%;
+    background:conic-gradient(from 0deg,rgba(255,255,255,.08),rgba(255,255,255,.02),rgba(255,255,255,.08));
+    animation:spin 18s linear infinite;
+  }
+  .player .disc{
+    width:272px;height:272px;border-radius:50%;position:relative;overflow:hidden;
+    box-shadow:0 30px 70px rgba(0,0,0,.6), 0 0 0 8px rgba(255,255,255,.04);
+    display:flex;align-items:center;justify-content:center;font-size:96px;color:#fff;
+  }
+  .player .disc .hole{
+    position:absolute;width:36px;height:36px;border-radius:50%;background:#0d0d0f;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.15);
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .player .song-meta{text-align:center;margin-top:34px;width:100%;}
+  .player .song-meta .name{font-size:23px;font-weight:800;letter-spacing:-.3px;}
+  .player .song-meta .artist{font-size:13.5px;color:rgba(255,255,255,.55);margin-top:7px;}
+  .player .like-row{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:16px;color:rgba(255,255,255,.6);font-size:13px;}
+  .player .like-row .like{color:#FF4B5C;font-size:15px;}
+
+  .player .p-controls{position:relative;z-index:2;padding:0 30px 16px;}
+  .player .progress-row{display:flex;align-items:center;gap:10px;font-size:11px;color:rgba(255,255,255,.5);}
+  .player .progress-bar{flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.15);position:relative;cursor:pointer;}
+  .player .progress-bar .fill{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:4px;background:linear-gradient(90deg,#FF4B5C,#FF8A3D);}
+  .player .progress-bar .knob{position:absolute;left:38%;top:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+
+  .player .btns{display:flex;align-items:center;justify-content:space-between;margin-top:20px;}
+  .player .btns .btn{color:#fff;font-size:20px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.92;}
+  .player .btns .btn.small{font-size:17px;opacity:.7;}
+  .player .btns .btn.main{
+    width:68px;height:68px;border-radius:50%;background:#fff;color:#1A1A1E;font-size:30px;
+    box-shadow:0 10px 30px rgba(255,255,255,.18);
+  }
+  .player .btns .btn.main:active{transform:scale(.94);}
+
+  .player .p-bottom{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-around;padding:10px 24px 26px;color:rgba(255,255,255,.75);font-size:11px;}
+  .player .p-bottom .item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;cursor:pointer;}
+  .player .p-bottom .item i{font-size:20px;font-style:normal;}
+
+  /* 歌词视图 */
+  .lyric-view{
+    position:absolute;inset:0;z-index:5;background:linear-gradient(180deg,#22152E 0%,#141418 70%);
+    display:none;flex-direction:column;padding-top:58px;color:#fff;
+  }
+  .lyric-view.active{display:flex;}
+  .lyric-view .lv-top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;}
+  .lyric-view .lv-top .iconbtn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;}
+  .lyric-view .lv-top .title{font-size:14px;font-weight:600;}
+  .lyric-view .lv-body{flex:1;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;padding:20px 30px 60px;}
+  .lyric-view .lv-lines{transition:transform .5s ease;}
+  .lyric-view .lv-line{
+    font-size:15px;color:rgba(255,255,255,.35);text-align:center;line-height:2.1;transition:all .4s;
+    padding:2px 0;
+  }
+  .lyric-view .lv-line.on{color:#fff;font-size:17px;font-weight:700;}
+  .lyric-view .lv-line.hot{color:rgba(255,255,255,.6);}
+
+  /* ========== 搜索页 ========== */
+  .search{background:#fff;}
+  .search .s-top{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;padding:54px 14px 10px;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);}
+  .search .s-top .back{font-size:21px;color:var(--text);padding:4px;cursor:pointer;}
+  .search .s-input{
+    flex:1;display:flex;align-items:center;gap:8px;background:#F2F2F5;border-radius:22px;padding:9px 14px;
+  }
+  .search .s-input input{border:none;outline:none;background:transparent;flex:1;font-size:14px;color:var(--text);}
+  .search .s-input .placeholder{font-size:13px;color:#A9A9B1;}
+  .search .s-input .searchicon{font-size:15px;color:#8A8A93;}
+  .search .s-body{padding:12px 18px;}
+  .search .s-section-title{font-size:14px;font-weight:700;color:var(--text);margin:20px 0 12px;}
+  .search .history-chips{display:flex;flex-wrap:wrap;gap:9px;}
+  .search .h-chip{font-size:12.5px;color:#55555E;background:#F2F2F5;padding:7px 14px;border-radius:18px;cursor:pointer;}
+  .search .hot-item{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid #F5F5F7;cursor:pointer;}
+  .search .hot-item .rank{font-size:16px;font-weight:800;width:22px;text-align:center;font-style:italic;}
+  .search .hot-item .rank.r1{color:#FF4B4B;}
+  .search .hot-item .rank.r2{color:#FF8A3D;}
+  .search .hot-item .rank.r3{color:#FFB020;}
+  .search .hot-item .name{flex:1;font-size:14px;font-weight:600;color:var(--text);}
+  .search .hot-item .tag{font-size:11px;color:#fff;background:var(--grad);border-radius:8px;padding:2px 7px;font-weight:700;}
+  .search .hot-item .hots{font-size:11px;color:#B9B9C0;}
+  .search .result{padding:4px 0 40px;}
+  .search .result-head{padding:14px 18px 6px;font-size:13px;color:var(--text2);}
+  .search .result-list{padding:0 18px;}
+  .search .empty{padding:60px 0;text-align:center;color:#B9B9C0;font-size:13px;}
+
+  /* ========== 我的页 ========== */
+  .mine{background:var(--bg);}
+  .mine .m-header{
+    background:linear-gradient(160deg,#FF8A5C 0%,#FF4B5C 60%,#C1356D 100%);
+    color:#fff;padding:64px 18px 22px;border-radius:0 0 26px 26px;position:relative;overflow:hidden;
+  }
+  .mine .m-header::before{content:"";position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.12);top:-70px;right:-40px;}
+  .mine .m-header::after{content:"";position:absolute;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.08);bottom:-50px;left:-30px;}
+  .mine .m-user{display:flex;align-items:center;gap:14px;position:relative;z-index:1;}
+  .mine .m-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#FFD93D,#FF6B6B);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 6px 18px rgba(0,0,0,.2);border:2px solid rgba(255,255,255,.5);}
+  .mine .m-user .info .name{font-size:19px;font-weight:800;}
+  .mine .m-user .info .desc{font-size:12px;color:rgba(255,255,255,.75);margin-top:4px;display:flex;align-items:center;gap:5px;}
+  .mine .m-stats{display:flex;gap:26px;margin-top:18px;position:relative;z-index:1;}
+  .mine .m-stats .stat{font-size:12.5px;color:rgba(255,255,255,.8);}
+  .mine .m-stats .stat b{font-size:17px;color:#fff;font-weight:800;display:block;margin-bottom:2px;}
+  .mine .m-actions{
+    display:flex;gap:12px;margin:16px 16px 0;position:relative;z-index:2;
+  }
+  .mine .m-card{
+    flex:1;background:#fff;border-radius:18px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;
+    box-shadow:0 6px 16px rgba(0,0,0,.05);
+  }
+  .mine .m-card i{font-size:26px;font-style:normal;}
+  .mine .m-card span{font-size:12px;font-weight:600;color:#3A3A42;}
+  .mine .m-section{padding:20px 16px 4px;}
+  .mine .m-section .title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+  .mine .m-section .title .more{font-size:11.5px;color:var(--text2);font-weight:500;}
+  .mine .m-grid{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;}
+  .mine .m-grid::-webkit-scrollbar{display:none;}
+  .mine .m-card2{flex-shrink:0;width:110px;cursor:pointer;}
+  .mine .m-card2 .cover{width:110px;height:110px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:34px;color:#fff;}
+  .mine .m-card2 .name{font-size:12px;color:var(--text);margin-top:7px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  /* 通用工具 */
+  .hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="phone">
+    <div class="screen" id="screen">
+
+      <!-- ============ 发现页 ============ -->
+      <section class="page discover active" id="page-discover">
+        <div class="statusbar">
+          <span class="time" id="st-time">9:41</span>
+          <span class="icons">📶 🔋</span>
+        </div>
+        <div class="topbar">
+          <div class="logo"><i></i>汽水音乐</div>
+          <div class="actions">
+            <span onclick="openSearch()">🔍</span>
+            <span>👤</span>
+          </div>
+        </div>
+
+        <!-- 每日推荐 Hero -->
+        <div class="hero">
+          <div class="tag">✨ 每日推荐 · 根据你的口味生成</div>
+          <div class="body">
+            <div class="cover">🎵</div>
+            <div class="meta">
+              <div class="title" id="hero-title">海阔天空</div>
+              <div class="artist" id="hero-artist">Beyond</div>
+              <div class="desc">💿 华语 · 经典 · 1993</div>
+            </div>
+            <div class="playbtn" onclick="playHero()">▶</div>
+          </div>
+          <div class="refresh" onclick="refreshHero()">🔄 换一换</div>
+        </div>
+
+        <!-- 分类 chips -->
+        <div class="chips">
+          <div class="chip on">每日推荐</div>
+          <div class="chip">热歌榜</div>
+          <div class="chip">新歌速递</div>
+          <div class="chip">华语</div>
+          <div class="chip">欧美</div>
+          <div class="chip">纯音乐</div>
+          <div class="chip">摇滚</div>
+          <div class="chip">民谣</div>
+        </div>
+
+        <!-- 热门歌单 -->
+        <div class="section-title">热门歌单 <span class="more">更多 ›</span></div>
+        <div class="playlist-row" id="playlist-row">
+          <div class="pl-card"><div class="cover c1"><span class="count">▶ 1200万</span>🎧</div><div class="name">华语经典老歌 · 怀旧金曲</div></div>
+          <div class="pl-card"><div class="cover c2"><span class="count">▶ 986万</span>🎸</div><div class="name">欧美流行 · 开车必备</div></div>
+          <div class="pl-card"><div class="cover c3"><span class="count">▶ 754万</span>🌙</div><div class="name">深夜emo · 治愈系纯音乐</div></div>
+          <div class="pl-card"><div class="cover c4"><span class="count">▶ 668万</span>🔥</div><div class="name">抖音热歌榜 Top100</div></div>
+          <div class="pl-card"><div class="cover c5"><span class="count">▶ 521万</span>🎻</div><div class="name">电影原声 · 钢琴精选</div></div>
+          <div class="pl-card"><div class="cover c6"><span class="count">▶ 480万</span>💗</div><div class="name">少女心 · 甜歌精选</div></div>
+        </div>
+
+        <!-- 为你推荐 -->
+        <div class="section-title">为你推荐 <span class="more">更多 ›</span></div>
+        <div class="song-list" id="discover-songs">
+          <div class="song-item" onclick="playIndex(0)">
+            <div class="cover c1">🎵</div>
+            <div class="info"><div class="name">海阔天空</div><div class="sub">Beyond · 华纳精选</div></div>
+            <div class="playcount">▶ 3200万</div>
+            <div class="more">⋯</div>
+          </div>
+          <div class="song-item" onclick="playIndex(1)">
+            <div class="cover c2">🌙</div>
+            <div class="info"><div class="name">夜空中最亮的星</div><div class="sub">逃跑计划 · 世界</div></div>
+            <div class="playcount">▶ 2800万</div>
+            <div class="more">⋯</div>
+          </div>
+          <div class="song-item" onclick="playIndex(2)">
+            <div class="cover c3">💫</div>
+            <div class="info"><div class="name">平凡之路</div><div class="sub">朴树 · 猎户星座</div></div>
+            <div class="playcount">▶ 2500万</div>
+            <div class="more">⋯</div>
+          </div>
+          <div class="song-item" onclick="playIndex(3)">
+            <div class="cover c4">🌊</div>
+            <div class="info"><div class="name">起风了</div><div class="sub">买辣椒也用券 · 单曲</div></div>
+            <div class="playcount">▶ 2200万</div>
+            <div class="more">⋯</div>
+          </div>
+          <div class="song-item" onclick="playIndex(4)">
+            <div class="cover c5">🏔️</div>
+            <div class="info"><div class="name">成都</div><div class="sub">赵雷 · 无法长大</div></div>
+            <div class="playcount">▶ 1900万</div>
+            <div class="more">⋯</div>
+          </div>
+          <div class="song-item" onclick="playIndex(5)">
+            <div class="cover c6">🎸</div>
+            <div class="info"><div class="name">光辉岁月</div><div class="sub">Beyond · 光辉岁月</div></div>
+            <div class="playcount">▶ 1600万</div>
+            <div class="more">⋯</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 搜索页 ============ -->
+      <section class="page search" id="page-search">
+        <div class="statusbar dark"><span class="time">9:41</span><span class="icons">📶 🔋</span></div>
+        <div class="s-top">
+          <span class="back" onclick="closeSearch()">←</span>
+          <div class="s-input">
+            <span class="searchicon">🔍</span>
+            <input type="text" id="search-input" placeholder="搜索歌曲、歌手、歌单" oninput="doSearch(this.value)">
+          </div>
+        </div>
+        <div class="s-body" id="search-home">
+          <div class="s-section-title">搜索历史</div>
+          <div class="history-chips">
+            <span class="h-chip">海阔天空</span>
+            <span class="h-chip">Beyond</span>
+            <span class="h-chip">周杰伦</span>
+            <span class="h-chip">纯音乐</span>
+          </div>
+          <div class="s-section-title">热门搜索</div>
+          <div class="hot-item"><span class="rank r1">1</span><span class="name">海阔天空</span><span class="tag">热</span><span class="hots">3200万</span></div>
+          <div class="hot-item"><span class="rank r2">2</span><span class="name">夜空中最亮的星</span><span class="hots">2800万</span></div>
+          <div class="hot-item"><span class="rank r3">3</span><span class="name">平凡之路</span><span class="hots">2500万</span></div>
+          <div class="hot-item"><span class="rank">4</span><span class="name">起风了</span><span class="hots">2200万</span></div>
+          <div class="hot-item"><span class="rank">5</span><span class="name">成都</span><span class="hots">1900万</span></div>
+        </div>
+        <div class="s-body result hidden" id="search-result">
+          <div class="result-head" id="result-head">找到相关歌曲</div>
+          <div class="result-list" id="result-list"></div>
+        </div>
+      </section>
+
+      <!-- ============ 我的页 ============ -->
+      <section class="page mine" id="page-mine">
+        <div class="statusbar dark"><span class="time">9:41</span><span class="icons">📶 🔋</span></div>
+        <div class="m-header">
+          <div class="m-user">
+            <div class="m-avatar">🧑‍🎤</div>
+            <div class="info">
+              <div class="name">音乐爱好者小Q</div>
+              <div class="desc">🎵 让音乐治愈每一天</div>
+            </div>
+          </div>
+          <div class="m-stats">
+            <div class="stat"><b>12</b>关注</div>
+            <div class="stat"><b>58</b>粉丝</div>
+            <div class="stat"><b>326</b>获赞</div>
+          </div>
+        </div>
+        <div class="m-actions">
+          <div class="m-card"><i>❤️</i><span>我喜欢的</span></div>
+          <div class="m-card"><i>🕘</i><span>最近播放</span></div>
+          <div class="m-card"><i>📁</i><span>本地音乐</span></div>
+        </div>
+        <div class="m-section">
+          <div class="title">创建的歌单 <span class="more">查看全部 ›</span></div>
+          <div class="m-grid">
+            <div class="m-card2"><div class="cover c1">🎵</div><div class="name">我的每日推荐</div></div>
+            <div class="m-card2"><div class="cover c2">🌙</div><div class="name">深夜专用</div></div>
+            <div class="m-card2"><div class="cover c3">🏃</div><div class="name">运动歌单</div></div>
+          </div>
+        </div>
+        <div class="m-section">
+          <div class="title">收藏的歌单 <span class="more">查看全部 ›</span></div>
+          <div class="m-grid">
+            <div class="m-card2"><div class="cover c4">🔥</div><div class="name">抖音热歌榜</div></div>
+            <div class="m-card2"><div class="cover c5">🎻</div><div class="name">钢琴纯音乐</div></div>
+            <div class="m-card2"><div class="cover c6">💗</div><div class="name">甜歌精选</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 播放页 ============ -->
+      <section class="page player" id="page-player">
+        <div class="blur-bg"></div>
+        <div class="statusbar dark"><span class="time">9:41</span><span class="icons">📶 🔋</span></div>
+        <div class="p-top">
+          <div class="col">
+            <div class="iconbtn" onclick="closePlayer()">⌄</div>
+          </div>
+          <div class="col" style="flex-direction:column;gap:0;">
+            <div class="title">正在播放</div>
+            <div class="subtitle" id="p-source">汽水音乐 · 每日推荐</div>
+          </div>
+          <div class="col">
+            <div class="iconbtn" onclick="toggleLyric()">📄</div>
+            <div class="iconbtn">⋯</div>
+          </div>
+        </div>
+
+        <div class="p-stage">
+          <div class="disc-wrap">
+            <div class="disc-ring"></div>
+            <div class="disc" id="p-disc">🎵<span class="hole"></span></div>
+          </div>
+          <div class="song-meta">
+            <div class="name" id="p-name">海阔天空</div>
+            <div class="artist" id="p-artist">Beyond · 华纳精选</div>
+            <div class="like-row"><span>❤️ 喜欢</span><span>💬 1.2万</span></div>
+          </div>
+        </div>
+
+        <div class="p-controls">
+          <div class="progress-row">
+            <span id="p-cur">01:23</span>
+            <div class="progress-bar"><div class="fill"></div><div class="knob"></div></div>
+            <span id="p-dur">04:15</span>
+          </div>
+          <div class="btns">
+            <div class="btn small" title="播放模式">🔁</div>
+            <div class="btn" title="上一首">⏮</div>
+            <div class="btn main" id="p-play" title="播放/暂停" onclick="togglePlay()">⏸</div>
+            <div class="btn" title="下一首">⏭</div>
+            <div class="btn small" title="播放列表">☰</div>
+          </div>
+        </div>
+
+        <div class="p-bottom">
+          <div class="item"><i>💬</i>评论</div>
+          <div class="item"><i>⬇️</i>下载</div>
+          <div class="item"><i>↗️</i>分享</div>
+          <div class="item"><i>⋯</i>更多</div>
+        </div>
+
+        <!-- 歌词视图 -->
+        <div class="lyric-view" id="lyric-view">
+          <div class="lv-top">
+            <div class="iconbtn" onclick="toggleLyric()">←</div>
+            <div class="title" id="lv-title">海阔天空</div>
+            <div class="iconbtn" style="opacity:0;">←</div>
+          </div>
+          <div class="lv-body">
+            <div class="lv-lines" id="lv-lines">
+              <div class="lv-line">作词 : 黄家驹</div>
+              <div class="lv-line">作曲 : 黄家驹</div>
+              <div class="lv-line hot">今天我 寒夜里看雪飘过</div>
+              <div class="lv-line on">怀着冷却了的心窝漂远方</div>
+              <div class="lv-line">风雨里追赶 雾里分不清影踪</div>
+              <div class="lv-line">天空海阔你与我</div>
+              <div class="lv-line">可会变 (谁没在变)</div>
+              <div class="lv-line">多少次 迎着冷眼与嘲笑</div>
+              <div class="lv-line">从没有放弃过心中的理想</div>
+              <div class="lv-line">一刹那恍惚 若有所失的感觉</div>
+              <div class="lv-line">不知不觉已变淡</div>
+              <div class="lv-line">心里爱 (谁明白我)</div>
+              <div class="lv-line">原谅我这一生不羁放纵爱自由</div>
+              <div class="lv-line">也会怕有一天会跌倒</div>
+              <div class="lv-line">背弃了理想 谁人都可以</div>
+              <div class="lv-line">哪会怕有一天只你共我</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 迷你播放条 ============ -->
+      <div class="miniplayer" id="miniplayer" onclick="openPlayer()">
+        <div class="bar"></div>
+        <div class="cover c1" id="mp-cover">🎵</div>
+        <div class="info">
+          <div class="name" id="mp-name">海阔天空</div>
+          <div class="artist" id="mp-artist">Beyond</div>
+        </div>
+        <div class="controls">
+          <div class="btn play" id="mp-play" onclick="event.stopPropagation();togglePlay()">⏸</div>
+        </div>
+      </div>
+
+      <!-- ============ 底部导航 ============ -->
+      <nav class="tabbar">
+        <div class="tab on" data-page="discover" onclick="switchTab('discover')"><i>🏠</i>发现</div>
+        <div class="tab" data-page="player" onclick="openPlayer()"><i>💿</i>播放</div>
+        <div class="tab" data-page="mine" onclick="switchTab('mine')"><i>👤</i>我的</div>
+      </nav>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // ================== 数据模型 ==================
+  const songs = [
+    {name:'海阔天空', artist:'Beyond', album:'华纳精选', cover:'c1', emoji:'🎵', dur:'04:15', lyric:['作词 : 黄家驹','作曲 : 黄家驹','今天我 寒夜里看雪飘过','怀着冷却了的心窝漂远方','风雨里追赶 雾里分不清影踪','天空海阔你与我','可会变 (谁没在变)','多少次 迎着冷眼与嘲笑','从没有放弃过心中的理想','原谅我这一生不羁放纵爱自由','也会怕有一天会跌倒','背弃了理想 谁人都可以','哪会怕有一天只你共我']},
+    {name:'夜空中最亮的星', artist:'逃跑计划', album:'世界', cover:'c2', emoji:'🌙', dur:'04:10', lyric:['作词 : 毛川','作曲 : 毛川','夜空中最亮的星 能否听清','那仰望的人 心底的孤独和叹息','夜空中最亮的星 能否记起','曾与我同行 消失在风里的身影','我祈祷拥有一颗透明的心灵','和会流泪的眼睛','给我再去相信的勇气','越过谎言去拥抱你']},
+    {name:'平凡之路', artist:'朴树', album:'猎户星座', cover:'c3', emoji:'💫', dur:'05:02', lyric:['作词 : 韩寒/朴树','作曲 : 朴树','徘徊着的 在路上的','你要走吗','易碎的 骄傲着','那也曾是我的模样','我曾经跨过山和大海','也穿过人山人海','我曾经拥有着的一切','转眼都飘散如烟']},
+    {name:'起风了', artist:'买辣椒也用券', album:'单曲', cover:'c4', emoji:'🌊', dur:'05:25', lyric:['作词 : 米果','作曲 : 高桥优','我曾将青春翻涌成她','也曾指尖弹出盛夏','心之所动 且就随缘去吧','逆着光行走 任风吹雨打']},
+    {name:'成都', artist:'赵雷', album:'无法长大', cover:'c5', emoji:'🏔️', dur:'05:28', lyric:['作词 : 赵雷','作曲 : 赵雷','让我掉下眼泪的 不止昨夜的酒','让我依依不舍的 不止你的温柔','余路还要走多久 你攥着我的手','让我感到为难的 是挣扎的自由']},
+    {name:'光辉岁月', artist:'Beyond', album:'光辉岁月', cover:'c6', emoji:'🎸', dur:'04:51', lyric:['作词 : 黄家驹','作曲 : 黄家驹','钟声响起归家的讯号','在他生命里 仿佛带点唏嘘','黑色肌肤给他的意义','是一生奉献 肤色斗争中']},
+  ];
+
+  let currentIndex = 0;
+  let playing = true;
+
+  // ================== 页面切换 ==================
+  function switchTab(tab){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+    document.querySelector('.tab[data-page="'+tab+'"]')?.classList.add('on');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+tab).classList.add('active');
+    if(tab==='discover' || tab==='mine'){
+      const pb = document.getElementById('page-'+tab).querySelector('.statusbar');
+      if(pb) pb.classList.remove('dark');
+    }
+  }
+  function openSearch(){
+    document.getElementById('page-search').classList.add('active');
+    document.getElementById('page-discover').classList.remove('active');
+    document.getElementById('page-mine').classList.remove('active');
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+    document.getElementById('search-input').focus();
+  }
+  function closeSearch(){
+    document.getElementById('page-search').classList.remove('active');
+    document.getElementById('page-discover').classList.add('active');
+    document.querySelector('.tab[data-page="discover"]').classList.add('on');
+    document.getElementById('search-input').value='';
+    document.getElementById('search-home').classList.remove('hidden');
+    document.getElementById('search-result').classList.add('hidden');
+  }
+
+  // ================== 播放器 ==================
+  function renderPlayer(){
+    const s = songs[currentIndex];
+    document.getElementById('p-name').textContent = s.name;
+    document.getElementById('p-artist').textContent = s.artist + ' · ' + s.album;
+    document.getElementById('p-disc').className = 'disc ' + s.cover;
+    document.getElementById('p-disc').innerHTML = s.emoji + '<span class="hole"></span>';
+    document.getElementById('mp-name').textContent = s.name;
+    document.getElementById('mp-artist').textContent = s.artist;
+    document.getElementById('mp-cover').className = 'cover ' + s.cover;
+    document.getElementById('mp-cover').textContent = s.emoji;
+    document.getElementById('hero-title').textContent = s.name;
+    document.getElementById('hero-artist').textContent = s.artist;
+    document.getElementById('lv-title').textContent = s.name;
+    document.getElementById('p-dur').textContent = s.dur;
+    const lines = document.getElementById('lv-lines');
+    lines.innerHTML = '';
+    s.lyric.forEach((l,i)=>{
+      const d = document.createElement('div');
+      d.className = 'lv-line' + (i===3?' on':(i>=1&&i<=2?' hot':''));
+      d.textContent = l;
+      lines.appendChild(d);
+    });
+  }
+  function playIndex(i){
+    currentIndex = i;
+    playing = true;
+    renderPlayer();
+    document.getElementById('miniplayer').classList.remove('hidden');
+    document.getElementById('p-play').textContent = '⏸';
+    document.getElementById('mp-play').textContent = '⏸';
+    openPlayer();
+  }
+  function playHero(){
+    playIndex(currentIndex);
+    openPlayer();
+  }
+  function refreshHero(){
+    const next = (currentIndex+1) % songs.length;
+    currentIndex = next;
+    renderPlayer();
+    document.getElementById('miniplayer').classList.remove('hidden');
+  }
+  function togglePlay(){
+    playing = !playing;
+    document.getElementById('p-play').textContent = playing?'⏸':'▶';
+    document.getElementById('mp-play').textContent = playing?'⏸':'▶';
+  }
+  function openPlayer(){
+    document.getElementById('page-player').classList.add('active');
+    document.querySelectorAll('.page').forEach(p=>{ if(p.id!=='page-player') p.classList.remove('active'); });
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+    document.getElementById('lyric-view').classList.remove('active');
+    document.querySelector('.statusbar.dark').classList.add('dark');
+  }
+  function closePlayer(){
+    document.getElementById('page-player').classList.remove('active');
+    document.getElementById('page-discover').classList.add('active');
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+    document.querySelector('.tab[data-page="discover"]').classList.add('on');
+  }
+  function toggleLyric(){
+    const lv = document.getElementById('lyric-view');
+    lv.classList.toggle('active');
+  }
+
+  // ================== 搜索 ==================
+  function doSearch(keyword){
+    const home = document.getElementById('search-home');
+    const res = document.getElementById('search-result');
+    if(!keyword.trim()){
+      home.classList.remove('hidden');
+      res.classList.add('hidden');
+      return;
+    }
+    home.classList.add('hidden');
+    res.classList.remove('hidden');
+    const list = songs.filter(s=> s.name.includes(keyword) || s.artist.includes(keyword) || s.album.includes(keyword));
+    document.getElementById('result-head').textContent = '找到 ' + list.length + ' 首相关歌曲';
+    const box = document.getElementById('result-list');
+    if(list.length===0){
+      box.innerHTML = '<div class="empty">未找到相关歌曲，换个关键词试试～</div>';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach((s,i)=>{
+      const idx = songs.indexOf(s);
+      const d = document.createElement('div');
+      d.className = 'song-item';
+      d.innerHTML = '<div class="cover '+s.cover+'">'+s.emoji+'</div>'+
+        '<div class="info"><div class="name">'+s.name+'</div><div class="sub">'+s.artist+' · '+s.album+'</div></div>'+
+        '<div class="playcount">▶ '+(i+1)+'</div>';
+      d.onclick = ()=>{ playIndex(idx); closeSearch(); };
+      box.appendChild(d);
+    });
+  }
+
+  // 时间
+  document.getElementById('st-time').textContent = new Date().toTimeString().slice(0,5);
+  renderPlayer();
+
+  // ================== URL 锚点导航（用于原型演示/截图） ==================
+  const hash = location.hash;
+  if (hash === '#player') openPlayer();
+  else if (hash === '#lyric') { openPlayer(); toggleLyric(); }
+  else if (hash === '#search') openSearch();
+  else if (hash === '#mine') switchTab('mine');
+</script>
+
+</body>
+</html>
