@@ -74,4 +74,11 @@
     <string name="timer_minutes">%1$d 分钟后停止播放</string>
     <string name="timer_set">已设置定时关闭：%1$d 分钟后</string>
     <string name="timer_cancel">取消定时关闭</string>
+
+    <!-- 本地音乐 -->
+    <string name="grant_permission">授权访问</string>
+    <string name="permission_required">需要媒体访问权限才能扫描本地音乐</string>
+    <string name="permission_denied">未授予权限，无法扫描本地音乐</string>
+    <string name="no_local_music">未找到本地音乐文件</string>
+    <string name="scanning_local">正在扫描本地音乐…</string>
 </resources>

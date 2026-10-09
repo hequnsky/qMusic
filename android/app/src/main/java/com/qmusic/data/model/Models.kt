@@ -35,6 +35,8 @@ data class Song(
     val album: Album? = null,
     val duration: Long? = null,
     @SerialName("dt") val dt: Long? = null,
+    /** 本地音乐文件路径（MediaStore 扫描），非空时表示本地歌曲 */
+    val localPath: String? = null,
 ) {
     val artistList: List<Artist> get() = if (artists.isNotEmpty()) artists else arList
     val albumObj: Album? get() = album ?: alAlbum

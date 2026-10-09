@@ -22,6 +22,7 @@ import com.qmusic.ui.discover.DiscoverScreen
 import com.qmusic.ui.mine.MineScreen
 import com.qmusic.ui.player.PlayerScreen
 import com.qmusic.ui.playlist.HotPlaylistScreen
+import com.qmusic.ui.playlist.LocalMusicScreen
 import com.qmusic.ui.playlist.PlaylistDetailScreen
 import com.qmusic.ui.search.SearchScreen
 
@@ -39,6 +40,7 @@ fun MainScreen(
     var playerOpen by rememberSaveable { mutableStateOf(false) }
     var playlistDetailId by rememberSaveable { mutableStateOf<Long?>(null) }
     var hotPlaylistOpen by rememberSaveable { mutableStateOf(false) }
+    var localMusicOpen by rememberSaveable { mutableStateOf(false) }
     val playerState by playerController.uiState.collectAsState()
 
     Scaffold(
@@ -83,6 +85,7 @@ fun MainScreen(
                         playerController.play(listOf(song), 0)
                         playerOpen = true
                     },
+                    onOpenLocalMusic = { localMusicOpen = true },
                 )
                 2 -> SearchScreen(
                     repository = app.repository,
@@ -115,6 +118,18 @@ fun MainScreen(
             onOpenPlaylist = { id ->
                 hotPlaylistOpen = false
                 playlistDetailId = id
+            },
+        )
+    }
+
+    // 本地音乐列表（覆盖层）
+    if (localMusicOpen) {
+        LocalMusicScreen(
+            onBack = { localMusicOpen = false },
+            onPlaySongs = { songs, index ->
+                playerController.play(songs, index)
+                localMusicOpen = false
+                playerOpen = true
             },
         )
     }

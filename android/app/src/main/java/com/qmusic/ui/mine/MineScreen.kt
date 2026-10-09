@@ -72,6 +72,7 @@ fun MineScreen(
     darkMode: Boolean = false,
     onThemeChanged: (Boolean) -> Unit = {},
     onPlaySong: (Song) -> Unit,
+    onOpenLocalMusic: () -> Unit = {},
 ) {
     val viewModel: MineViewModel = viewModel(
         factory = viewModelFactory {
@@ -115,7 +116,7 @@ fun MineScreen(
                 ActionCard(
                     icon = Icons.Filled.Folder,
                     label = stringResource(R.string.local_music),
-                    onClick = { showNotImplemented(context) },
+                    onClick = onOpenLocalMusic,
                 )
             }
         }

@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 import java.lang.ref.WeakReference
 
 /** 播放器 UI 状态 */
@@ -91,17 +92,29 @@ class PlayerController(
         }
         scope.launch {
             try {
-                val url = repository.getSongUrl(song.id)
-                if (url.isNullOrBlank()) {
-                    _uiState.update { it.copy(error = "该歌曲暂不支持播放（可能受版权保护）") }
-                    return@launch
+                // 本地音乐直接使用文件 Uri；在线音乐走远程播放地址
+                val uri: Uri
+                if (!song.localPath.isNullOrBlank()) {
+                    val file = File(song.localPath)
+                    if (!file.exists()) {
+                        _uiState.update { it.copy(error = "本地文件不存在或已被移动") }
+                        return@launch
+                    }
+                    uri = Uri.fromFile(file)
+                } else {
+                    val url = repository.getSongUrl(song.id)
+                    if (url.isNullOrBlank()) {
+                        _uiState.update { it.copy(error = "该歌曲暂不支持播放（可能受版权保护）") }
+                        return@launch
+                    }
+                    uri = Uri.parse(url)
                 }
                 repository.addHistory(song)
 
                 val exo = getPlayer()
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(song.id.toString())
-                    .setUri(url)
+                    .setUri(uri)
                     .setMediaMetadata(
                         MediaMetadata.Builder()
                             .setTitle(song.name)

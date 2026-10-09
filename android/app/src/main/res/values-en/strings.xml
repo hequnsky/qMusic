@@ -74,4 +74,11 @@
     <string name="timer_minutes">Stop playing after %1$d min</string>
     <string name="timer_set">Sleep timer set: stop after %1$d min</string>
     <string name="timer_cancel">Cancel sleep timer</string>
+
+    <!-- Local music -->
+    <string name="grant_permission">Grant Access</string>
+    <string name="permission_required">Media access permission is required to scan local music</string>
+    <string name="permission_denied">Permission denied. Cannot scan local music.</string>
+    <string name="no_local_music">No local music found</string>
+    <string name="scanning_local">Scanning local music…</string>
 </resources>
