@@ -11,11 +11,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.qmusic.QMusicApp
+import com.qmusic.data.model.Song
+import com.qmusic.ui.category.CategoryMusicScreen
+import com.qmusic.ui.category.CategorySpec
+import com.qmusic.ui.comment.CommentScreen
 import com.qmusic.ui.components.MiniPlayerBar
 import com.qmusic.ui.components.QMusicBottomBar
 import com.qmusic.ui.discover.DiscoverScreen
@@ -41,6 +46,8 @@ fun MainScreen(
     var playlistDetailId by rememberSaveable { mutableStateOf<Long?>(null) }
     var hotPlaylistOpen by rememberSaveable { mutableStateOf(false) }
     var localMusicOpen by rememberSaveable { mutableStateOf(false) }
+    var category by remember { mutableStateOf<CategorySpec?>(null) }
+    var commentSong by remember { mutableStateOf<Song?>(null) }
     val playerState by playerController.uiState.collectAsState()
 
     Scaffold(
@@ -76,6 +83,7 @@ fun MainScreen(
                     onOpenMine = { selectedTab = 1 },
                     onOpenPlaylist = { playlistDetailId = it },
                     onOpenMorePlaylists = { hotPlaylistOpen = true },
+                    onOpenCategory = { category = it },
                 )
                 1 -> MineScreen(
                     repository = app.repository,
@@ -134,11 +142,40 @@ fun MainScreen(
         )
     }
 
+    // 分类音乐页（每日推荐/热歌榜/新歌速递/华语/欧美/纯音乐/摇滚/民谣）
+    category?.let { spec ->
+        CategoryMusicScreen(
+            spec = spec,
+            repository = app.repository,
+            onBack = { category = null },
+            onPlaySongs = { songs, index ->
+                playerController.play(songs, index)
+                category = null
+                playerOpen = true
+            },
+            onOpenPlaylist = { id ->
+                category = null
+                playlistDetailId = id
+            },
+        )
+    }
+
+    // 歌曲评论页
+    commentSong?.let { song ->
+        CommentScreen(
+            songId = song.id,
+            songName = song.name,
+            repository = app.repository,
+            onBack = { commentSong = null },
+        )
+    }
+
     if (playerOpen) {
         PlayerScreen(
             playerController = playerController,
             repository = app.repository,
             onClose = { playerOpen = false },
+            onOpenComment = { song -> commentSong = song },
         )
     }
 }

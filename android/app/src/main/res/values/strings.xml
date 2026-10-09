@@ -42,6 +42,10 @@
     <string name="dark_mode_desc">切换深浅色外观</string>
     <string name="empty_favorite">还没有喜欢的歌曲，快去播放页点 ❤️ 吧～</string>
     <string name="empty_history">暂无播放记录</string>
+    <string name="empty_playlist">暂无相关内容</string>
+    <string name="comments">评论</string>
+    <string name="empty_comments">暂无评论，快来抢沙发～</string>
+    <string name="comment_likes">赞</string>
 
     <!-- 搜索页 -->
     <string name="search">搜索</string>

@@ -42,6 +42,10 @@
     <string name="dark_mode_desc">Switch light / dark appearance</string>
     <string name="empty_favorite">No favorites yet. Tap ♥ on the player page!</string>
     <string name="empty_history">No play history</string>
+    <string name="empty_playlist">Nothing here yet</string>
+    <string name="comments">Comments</string>
+    <string name="empty_comments">No comments yet. Be the first!</string>
+    <string name="comment_likes">likes</string>
 
     <!-- Search -->
     <string name="search">Search</string>

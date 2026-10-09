@@ -100,6 +100,7 @@ fun PlayerScreen(
     playerController: PlayerController,
     repository: MusicRepository,
     onClose: () -> Unit,
+    onOpenComment: (Song) -> Unit = {},
 ) {
     val viewModel: PlayerViewModel = viewModel(
         factory = viewModelFactory {
@@ -226,7 +227,7 @@ fun PlayerScreen(
                         "💬 评论",
                         fontSize = 13.sp,
                         color = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.clickable { showNotImplemented(context) },
+                        modifier = Modifier.clickable { state.song?.let(onOpenComment) },
                     )
                 }
             }
@@ -297,24 +298,28 @@ fun PlayerScreen(
                 }
             }
 
-            // 底部操作（占位：评论/下载点击提示暂未实现）
+            // 底部操作：评论（真实）/ 下载（暂未实现）/ 分享（系统分享）/ 更多（弹出菜单）
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 28.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                listOf("评论", "下载", "分享", "更多").forEach { label ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { showNotImplemented(context) }
-                            .padding(horizontal = 10.dp, vertical = 2.dp),
-                    ) {
-                        Text("•", fontSize = 16.sp, color = Color.White.copy(alpha = 0.7f))
-                        Spacer(Modifier.height(2.dp))
-                        Text(label, fontSize = 10.5.sp, color = Color.White.copy(alpha = 0.7f))
-                    }
-                }
+                BottomActionItem(label = "评论", onClick = { state.song?.let(onOpenComment) })
+                BottomActionItem(label = "下载", onClick = { showNotImplemented(context) })
+                BottomActionItem(
+                    label = "分享",
+                    onClick = {
+                        val song = state.song ?: return@BottomActionItem
+                        val shareText = context.getString(R.string.share_text, song.name, song.artistName)
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                        }
+                        context.startActivity(
+                            Intent.createChooser(sendIntent, context.getString(R.string.share)),
+                        )
+                    },
+                )
+                BottomActionItem(label = "更多", onClick = { showMore = true })
             }
         }
 
@@ -664,5 +669,20 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
                     .padding(horizontal = 14.dp, vertical = 7.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun BottomActionItem(label: String, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 2.dp),
+    ) {
+        Text("•", fontSize = 16.sp, color = Color.White.copy(alpha = 0.7f))
+        Spacer(Modifier.height(2.dp))
+        Text(label, fontSize = 10.5.sp, color = Color.White.copy(alpha = 0.7f))
     }
 }

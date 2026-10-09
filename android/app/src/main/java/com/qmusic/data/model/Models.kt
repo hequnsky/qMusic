@@ -105,6 +105,28 @@ data class PersonalizedResponse(val result: List<Playlist> = emptyList())
 @Serializable
 data class TopPlaylistResponse(val playlists: List<Playlist> = emptyList())
 
+/** 新歌速递 / 榜单歌曲响应（/top/song） */
+@Serializable
+data class TopSongResponse(val data: List<Song> = emptyList())
+
+/** 歌曲评论响应（/comment/music） */
+@Serializable
+data class CommentResponse(val comments: List<Comment> = emptyList())
+
+@Serializable
+data class Comment(
+    val user: CommentUser = CommentUser(),
+    val content: String = "",
+    val time: Long = 0,
+    val likedCount: Int = 0,
+)
+
+@Serializable
+data class CommentUser(
+    val nickname: String = "",
+    val avatarUrl: String? = null,
+)
+
 /** 歌单详情响应 */
 @Serializable
 data class PlaylistDetailResponse(val playlist: PlaylistDetail = PlaylistDetail())

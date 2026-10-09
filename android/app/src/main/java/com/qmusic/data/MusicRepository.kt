@@ -4,6 +4,7 @@ import com.qmusic.data.local.FavoriteDao
 import com.qmusic.data.local.HistoryDao
 import com.qmusic.data.local.entity.Favorite
 import com.qmusic.data.local.entity.History
+import com.qmusic.data.model.Comment
 import com.qmusic.data.model.LyricLine
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.PlaylistDetail
@@ -35,6 +36,17 @@ class MusicRepository(
 
     suspend fun getTopPlaylists(limit: Int = 10): List<Playlist> =
         api.topPlaylist(limit).playlists
+
+    suspend fun getTopPlaylistsByCat(cat: String, limit: Int = 50): List<Playlist> =
+        api.topPlaylist(limit, cat = cat).playlists
+
+    /** 新歌速递/榜单歌曲（type: 0=全部 7=华语 96=欧美） */
+    suspend fun getTopSongs(type: Int = 0, limit: Int = 50): List<Song> =
+        api.topSong(type, limit).data
+
+    /** 歌曲评论 */
+    suspend fun getMusicComments(id: Long, limit: Int = 30): List<Comment> =
+        api.musicComment(id, limit).comments
 
     suspend fun getPlaylistDetail(id: Long): PlaylistDetail? =
         api.playlistDetail(id).playlist.takeIf { it.id != 0L }
