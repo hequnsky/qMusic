@@ -12,8 +12,12 @@
 - 🎨 **汽水音乐风格 UI**：浅色发现页 + 深色全屏播放页 + 底部三栏导航 + 歌词视图
 - 🌐 **在线音乐资源**：自建 Node 音乐抓取服务（基于 `NeteaseCloudMusicApi`），提供搜索 / 播放地址 / 歌词 / 歌单 / 推荐接口
 - 📱 **纯 Kotlin + Jetpack Compose** 实现，MVVM 架构
-- ▶️ **Media3 ExoPlayer 播放引擎**，支持前台服务与通知栏控制
+- ▶️ **Media3 ExoPlayer 播放引擎**，支持前台服务、通知栏进度条控制
 - ❤️ **本地收藏 / 最近播放**，Room 持久化
+- 🎵 **播放列表弹窗**：队列展示、当前高亮、点击切歌
+- 🧩 **桌面小组件**：2x2 播放控制（封面/歌名/播放暂停/上一首/下一首）
+- 🌙 **多语言 + 深浅色主题**：中英文案随系统切换；「我的」页深色模式开关持久化
+- 🔒 **R8 混淆 + 资源收缩**：Release APK 仅约 2.5MB
 - 🔧 **可一键构建 APK**（Gradle + Android SDK）
 
 ## 目录结构
@@ -75,6 +79,9 @@ cd android
 6. `feat(android): UI 页面`
 7. `build(android): 产出 APK`
 8. `docs: 最终交付说明`
+9. `feat(android): 歌单详情页 + 歌词滚动`
+10. `feat(android): 播放列表弹窗 + Release 签名`
+11. `feat(android): R8 瘦身 / 小组件 / 通知进度 / 歌词调优 / 多语言 / 深浅色`
 
 ---
 
