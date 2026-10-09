@@ -62,4 +62,16 @@
     <string name="privacy_agree">同意并继续</string>
     <string name="privacy_disagree">不同意</string>
     <string name="privacy_content">感谢使用汽水音乐（qMusic）。\n\n1. 我们仅在本机存储你的使用数据：搜索历史、播放历史与收藏列表，用于提供个性化体验，不会上传至任何服务器。\n2. 音乐内容与播放地址来自第三方平台的公开接口，版权归原作者所有。\n3. 本项目仅用于学习与技术交流，请勿用于商业用途。</string>
+
+    <!-- 未实现/占位提示 -->
+    <string name="not_implemented">暂未实现，敬请期待</string>
+    <string name="play_mode_order">顺序播放</string>
+    <string name="play_mode_list">列表循环</string>
+    <string name="play_mode_single">单曲循环</string>
+    <string name="share">分享</string>
+    <string name="timer_off">定时关闭</string>
+    <string name="share_text">推荐歌曲：%1$s - %2$s</string>
+    <string name="timer_minutes">%1$d 分钟后停止播放</string>
+    <string name="timer_set">已设置定时关闭：%1$d 分钟后</string>
+    <string name="timer_cancel">取消定时关闭</string>
 </resources>

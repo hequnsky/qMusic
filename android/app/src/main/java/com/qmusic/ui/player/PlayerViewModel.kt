@@ -39,6 +39,9 @@ class PlayerViewModel(
 
     fun seekTo(ms: Long) = playerController.seekTo(ms)
 
+    /** 循环切换播放模式（顺序/列表循环/单曲循环） */
+    fun cycleRepeatMode() = playerController.cycleRepeatMode()
+
     fun toggleFavorite() {
         val state = uiState.value
         val song = state.song ?: return

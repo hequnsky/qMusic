@@ -1,5 +1,7 @@
 package com.qmusic.ui.player
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -32,14 +34,19 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -58,6 +65,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -67,6 +75,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
@@ -75,10 +84,12 @@ import com.qmusic.player.PlayerController
 import com.qmusic.player.PlayerUiState
 import com.qmusic.ui.components.SongCover
 import com.qmusic.ui.components.formatDuration
+import com.qmusic.ui.components.showNotImplemented
 import com.qmusic.ui.theme.Accent
 import com.qmusic.ui.theme.Dark
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -97,6 +108,11 @@ fun PlayerScreen(
     val state by viewModel.uiState.collectAsState()
     var showLyrics by rememberSaveable { mutableStateOf(false) }
     var showQueue by rememberSaveable { mutableStateOf(false) }
+    var showMore by remember { mutableStateOf(false) }
+    var showTimerDialog by remember { mutableStateOf(false) }
+    var timerJob by remember { mutableStateOf<Job?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     if (showLyrics) {
         LyricView(state = state, onBack = { showLyrics = false })
@@ -131,8 +147,38 @@ fun PlayerScreen(
                 IconButton(onClick = { showLyrics = true }) {
                     Icon(Icons.Filled.Notes, contentDescription = "歌词", tint = Color.White)
                 }
-                IconButton(onClick = {}) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "更多", tint = Color.White)
+                // 更多菜单：分享 / 定时关闭
+                Box {
+                    IconButton(onClick = { showMore = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "更多", tint = Color.White)
+                    }
+                    DropdownMenu(
+                        expanded = showMore,
+                        onDismissRequest = { showMore = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.share)) },
+                            onClick = {
+                                showMore = false
+                                val song = state.song ?: return@DropdownMenuItem
+                                val shareText = context.getString(R.string.share_text, song.name, song.artistName)
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(sendIntent, context.getString(R.string.share)),
+                                )
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.timer_off)) },
+                            onClick = {
+                                showMore = false
+                                showTimerDialog = true
+                            },
+                        )
+                    }
                 }
             }
 
@@ -175,7 +221,12 @@ fun PlayerScreen(
                         modifier = Modifier.clickable { viewModel.toggleFavorite() },
                     )
                     Spacer(Modifier.width(28.dp))
-                    Text("💬 评论", fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f))
+                    Text(
+                        "💬 评论",
+                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.clickable { showNotImplemented(context) },
+                    )
                 }
             }
 
@@ -205,8 +256,21 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Filled.Repeat, contentDescription = "播放模式", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(22.dp))
+                    IconButton(onClick = { viewModel.cycleRepeatMode() }) {
+                        Icon(
+                            if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                            contentDescription = when (state.repeatMode) {
+                                Player.REPEAT_MODE_ONE -> stringResource(R.string.play_mode_single)
+                                Player.REPEAT_MODE_ALL -> stringResource(R.string.play_mode_list)
+                                else -> stringResource(R.string.play_mode_order)
+                            },
+                            tint = if (state.repeatMode == Player.REPEAT_MODE_OFF) {
+                                Color.White.copy(alpha = 0.5f)
+                            } else {
+                                GradientStart
+                            },
+                            modifier = Modifier.size(22.dp),
+                        )
                     }
                     IconButton(onClick = { viewModel.prev() }) {
                         Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.prev), tint = Color.White, modifier = Modifier.size(34.dp))
@@ -232,13 +296,19 @@ fun PlayerScreen(
                 }
             }
 
-            // 底部操作
+            // 底部操作（占位：评论/下载点击提示暂未实现）
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 28.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 listOf("评论", "下载", "分享", "更多").forEach { label ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { showNotImplemented(context) }
+                            .padding(horizontal = 10.dp, vertical = 2.dp),
+                    ) {
                         Text("•", fontSize = 16.sp, color = Color.White.copy(alpha = 0.7f))
                         Spacer(Modifier.height(2.dp))
                         Text(label, fontSize = 10.5.sp, color = Color.White.copy(alpha = 0.7f))
@@ -272,6 +342,63 @@ fun PlayerScreen(
                     showQueue = false
                 },
                 onClose = { showQueue = false },
+            )
+        }
+
+        // 定时关闭对话框
+        if (showTimerDialog) {
+            AlertDialog(
+                onDismissRequest = { showTimerDialog = false },
+                title = { Text(stringResource(R.string.timer_off)) },
+                text = {
+                    Column {
+                        listOf(15L, 30L, 60L).forEach { minutes ->
+                            Text(
+                                stringResource(R.string.timer_minutes, minutes),
+                                fontSize = 14.sp,
+                                color = Color.White,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        timerJob?.cancel()
+                                        timerJob = scope.launch {
+                                            delay(minutes * 60_000L)
+                                            playerController.stop()
+                                        }
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.timer_set, minutes),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                        showTimerDialog = false
+                                    }
+                                    .padding(vertical = 10.dp),
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.timer_cancel),
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    timerJob?.cancel()
+                                    timerJob = null
+                                    showTimerDialog = false
+                                }
+                                .padding(vertical = 10.dp),
+                        )
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showTimerDialog = false }) {
+                        Text(stringResource(R.string.close))
+                    }
+                },
+                containerColor = Color(0xFF1B1B1F),
+                titleContentColor = Color.White,
+                textContentColor = Color.White,
             )
         }
     }

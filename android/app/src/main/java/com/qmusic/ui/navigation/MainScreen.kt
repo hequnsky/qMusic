@@ -21,6 +21,7 @@ import com.qmusic.ui.components.QMusicBottomBar
 import com.qmusic.ui.discover.DiscoverScreen
 import com.qmusic.ui.mine.MineScreen
 import com.qmusic.ui.player.PlayerScreen
+import com.qmusic.ui.playlist.HotPlaylistScreen
 import com.qmusic.ui.playlist.PlaylistDetailScreen
 import com.qmusic.ui.search.SearchScreen
 
@@ -37,6 +38,7 @@ fun MainScreen(
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var playerOpen by rememberSaveable { mutableStateOf(false) }
     var playlistDetailId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var hotPlaylistOpen by rememberSaveable { mutableStateOf(false) }
     val playerState by playerController.uiState.collectAsState()
 
     Scaffold(
@@ -71,6 +73,7 @@ fun MainScreen(
                     onOpenSearch = { selectedTab = 2 },
                     onOpenMine = { selectedTab = 1 },
                     onOpenPlaylist = { playlistDetailId = it },
+                    onOpenMorePlaylists = { hotPlaylistOpen = true },
                 )
                 1 -> MineScreen(
                     repository = app.repository,
@@ -100,6 +103,18 @@ fun MainScreen(
             onPlayAll = { songs, index ->
                 playerController.play(songs, index)
                 playerOpen = true
+            },
+        )
+    }
+
+    // 全部热门歌单（覆盖在歌单详情之上，点击歌单后进入详情）
+    if (hotPlaylistOpen) {
+        HotPlaylistScreen(
+            repository = app.repository,
+            onBack = { hotPlaylistOpen = false },
+            onOpenPlaylist = { id ->
+                hotPlaylistOpen = false
+                playlistDetailId = id
             },
         )
     }

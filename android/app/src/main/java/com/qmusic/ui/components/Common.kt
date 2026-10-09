@@ -1,5 +1,7 @@
 package com.qmusic.ui.components
 
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +62,11 @@ fun formatPlayCount(count: Long): String = when {
     count >= 100_000_000 -> "%.1f亿".format(count / 1e8)
     count >= 10_000 -> "%.0f万".format(count / 1e4)
     else -> count.toString()
+}
+
+/** 未接线功能统一提示「暂未实现」 */
+fun showNotImplemented(context: Context) {
+    Toast.makeText(context, R.string.not_implemented, Toast.LENGTH_SHORT).show()
 }
 
 /** 封面图（无图时显示渐变占位） */

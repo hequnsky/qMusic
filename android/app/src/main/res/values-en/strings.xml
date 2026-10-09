@@ -62,4 +62,16 @@
     <string name="privacy_agree">Agree &amp; Continue</string>
     <string name="privacy_disagree">Disagree</string>
     <string name="privacy_content">Thank you for using QMusic.\n\n1. We store your usage data only on this device: search history, play history and favorites, used to personalize your experience. Nothing is uploaded to any server.\n2. Music content and playback URLs come from third-party public APIs; copyright belongs to the original owners.\n3. This project is for learning and technical exchange only. Do not use it commercially.</string>
+
+    <!-- Not implemented / placeholder -->
+    <string name="not_implemented">Not implemented yet</string>
+    <string name="play_mode_order">Sequential</string>
+    <string name="play_mode_list">Loop All</string>
+    <string name="play_mode_single">Repeat One</string>
+    <string name="share">Share</string>
+    <string name="timer_off">Sleep Timer</string>
+    <string name="share_text">Recommend a song: %1$s - %2$s</string>
+    <string name="timer_minutes">Stop playing after %1$d min</string>
+    <string name="timer_set">Sleep timer set: stop after %1$d min</string>
+    <string name="timer_cancel">Cancel sleep timer</string>
 </resources>

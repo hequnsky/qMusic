@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +57,7 @@ import com.qmusic.data.model.Song
 import com.qmusic.ui.components.PlaylistCard
 import com.qmusic.ui.components.SectionTitle
 import com.qmusic.ui.components.SongRow
+import com.qmusic.ui.components.showNotImplemented
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
@@ -67,6 +69,7 @@ fun DiscoverScreen(
     onOpenSearch: () -> Unit,
     onOpenMine: () -> Unit,
     onOpenPlaylist: (Long) -> Unit,
+    onOpenMorePlaylists: () -> Unit,
 ) {
     val viewModel: DiscoverViewModel = viewModel(
         factory = viewModelFactory {
@@ -93,7 +96,7 @@ fun DiscoverScreen(
 
         item { ChipsRow() }
 
-        item { SectionTitle(title = stringResource(R.string.hot_playlist)) }
+        item { SectionTitle(title = stringResource(R.string.hot_playlist), onMore = onOpenMorePlaylists) }
         item {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -285,6 +288,7 @@ private fun HeroCard(
 @Composable
 private fun ChipsRow() {
     val colors = LocalQMusicColors.current
+    val context = LocalContext.current
     val chips = listOf("每日推荐", "热歌榜", "新歌速递", "华语", "欧美", "纯音乐", "摇滚", "民谣")
     Row(
         modifier = Modifier
@@ -302,7 +306,7 @@ private fun ChipsRow() {
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
                     .background(if (selected) Color(0xFF15161A) else colors.card)
-                    .clickable {}
+                    .clickable { showNotImplemented(context) }
                     .padding(horizontal = 14.dp, vertical = 7.dp),
             )
         }

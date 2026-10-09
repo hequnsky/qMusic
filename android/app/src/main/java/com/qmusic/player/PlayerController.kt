@@ -46,6 +46,7 @@ data class PlayerUiState(
     val lyrics: List<LyricLine> = emptyList(),
     val currentLyricIndex: Int = -1,
     val isFavorite: Boolean = false,
+    val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val error: String? = null,
 )
 
@@ -159,6 +160,19 @@ class PlayerController(
 
     fun seekTo(ms: Long) {
         player?.seekTo(ms)
+    }
+
+    /** 循环切换播放模式：顺序播放 -> 列表循环 -> 单曲循环 */
+    fun cycleRepeatMode() {
+        val exo = getPlayer()
+        val next = when (exo.repeatMode) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        exo.repeatMode = next
+        _uiState.update { it.copy(repeatMode = next) }
+        updateNotification()
     }
 
     fun stop() {

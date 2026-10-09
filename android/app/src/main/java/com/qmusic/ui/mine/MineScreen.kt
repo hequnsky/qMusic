@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,12 +33,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,10 +59,12 @@ import com.qmusic.data.model.Song
 import com.qmusic.ui.components.PrivacyDialog
 import com.qmusic.ui.components.SectionTitle
 import com.qmusic.ui.components.SongRow
+import com.qmusic.ui.components.showNotImplemented
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
 import com.qmusic.ui.theme.TextSecondary
+import kotlinx.coroutines.launch
 
 @Composable
 fun MineScreen(
@@ -77,22 +82,41 @@ fun MineScreen(
     val favorites by viewModel.favorites.collectAsState()
     val history by viewModel.history.collectAsState()
     var showPrivacy by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    // 我的页 LazyColumn item 索引：0 header / 1 ActionCard / 2 深色模式 / 3 隐私政策 / 4 我喜欢的标题 / 5.. 收藏 / ... 最近播放标题
+    val recentTitleIndex = 5 + (if (favorites.isEmpty()) 1 else favorites.size)
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().background(colors.background),
             contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-        item { MineHeader() }
+        item { MineHeader(onStatsClick = { showNotImplemented(context) }) }
 
         item {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                ActionCard(icon = Icons.Filled.Favorite, label = stringResource(R.string.liked_songs))
-                ActionCard(icon = Icons.Filled.History, label = stringResource(R.string.recent_plays))
-                ActionCard(icon = Icons.Filled.Folder, label = stringResource(R.string.local_music))
+                ActionCard(
+                    icon = Icons.Filled.Favorite,
+                    label = stringResource(R.string.liked_songs),
+                    onClick = { scope.launch { listState.animateScrollToItem(4) } },
+                )
+                ActionCard(
+                    icon = Icons.Filled.History,
+                    label = stringResource(R.string.recent_plays),
+                    onClick = { scope.launch { listState.animateScrollToItem(recentTitleIndex) } },
+                )
+                ActionCard(
+                    icon = Icons.Filled.Folder,
+                    label = stringResource(R.string.local_music),
+                    onClick = { showNotImplemented(context) },
+                )
             }
         }
 
@@ -185,7 +209,7 @@ fun MineScreen(
 }
 
 @Composable
-private fun MineHeader() {
+private fun MineHeader(onStatsClick: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -219,7 +243,7 @@ private fun MineHeader() {
             horizontalArrangement = Arrangement.spacedBy(26.dp),
         ) {
             listOf("12" to "关注", "58" to "粉丝", "326" to "获赞").forEach { (num, label) ->
-                Column {
+                Column(modifier = Modifier.clickable(onClick = onStatsClick)) {
                     Text(num, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                     Spacer(Modifier.height(2.dp))
                     Text(label, fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
@@ -230,13 +254,18 @@ private fun MineHeader() {
 }
 
 @Composable
-private fun RowScope.ActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+private fun RowScope.ActionCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit = {},
+) {
     val colors = LocalQMusicColors.current
     Column(
         modifier = Modifier
             .weight(1f)
             .clip(RoundedCornerShape(18.dp))
             .background(colors.card)
+            .clickable(onClick = onClick)
             .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
