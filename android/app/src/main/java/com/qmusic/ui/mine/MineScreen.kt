@@ -25,9 +25,12 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +54,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
+import com.qmusic.data.local.ServerConfig
 import com.qmusic.data.local.entity.Favorite
 import com.qmusic.data.local.entity.History
 import com.qmusic.data.model.Album
@@ -83,6 +87,7 @@ fun MineScreen(
     val favorites by viewModel.favorites.collectAsState()
     val history by viewModel.history.collectAsState()
     var showPrivacy by remember { mutableStateOf(false) }
+    var showServerDialog by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -180,6 +185,44 @@ fun MineScreen(
             }
         }
 
+        // 服务器地址（真机切换电脑局域网 IP 时使用）
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 10.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.card)
+                    .clickable { showServerDialog = true }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.server_address),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        ServerConfig.getBaseUrl(context),
+                        fontSize = 11.sp,
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Icon(
+                    Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+
         item { SectionTitle(title = stringResource(R.string.liked_songs), more = "${favorites.size} ${stringResource(R.string.songs)}") }
         if (favorites.isEmpty()) {
             item { EmptyText(stringResource(R.string.empty_favorite)) }
@@ -204,6 +247,46 @@ fun MineScreen(
         PrivacyDialog(
             onAgree = { showPrivacy = false },
             requireChoice = false,
+        )
+    }
+
+    // 服务器地址设置
+    if (showServerDialog) {
+        var url by remember { mutableStateOf(ServerConfig.getBaseUrl(context)) }
+        AlertDialog(
+            onDismissRequest = { showServerDialog = false },
+            containerColor = Color(0xFF1B1B1F),
+            title = { Text(stringResource(R.string.server_address), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White) },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.server_address_hint),
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.6f),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it },
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = Color.White),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    ServerConfig.setBaseUrl(context, url)
+                    showServerDialog = false
+                }) {
+                    Text(stringResource(R.string.save), color = GradientStart)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showServerDialog = false }) {
+                    Text(stringResource(R.string.cancel), color = Color.White.copy(alpha = 0.6f))
+                }
+            },
         )
     }
     }

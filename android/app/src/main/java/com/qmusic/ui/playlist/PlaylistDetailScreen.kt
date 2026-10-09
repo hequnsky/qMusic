@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -75,7 +76,7 @@ fun PlaylistDetailScreen(
     val state by viewModel.uiState.collectAsState()
     val colors = LocalQMusicColors.current
 
-    Box(Modifier.fillMaxSize().background(colors.background)) {
+    Box(Modifier.fillMaxSize().background(colors.background).navigationBarsPadding()) {
         when {
             state.detail == null && state.loading -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
