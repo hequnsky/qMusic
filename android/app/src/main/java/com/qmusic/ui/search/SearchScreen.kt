@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +40,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -58,7 +63,10 @@ fun SearchScreen(
 ) {
     val viewModel: SearchViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { SearchViewModel(repository) }
+            initializer {
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!
+                SearchViewModel(repository, app)
+            }
         },
     )
     val colors = LocalQMusicColors.current
@@ -88,6 +96,8 @@ fun SearchScreen(
                     onValueChange = { viewModel.onQueryChange(it) },
                     singleLine = true,
                     textStyle = TextStyle(fontSize = 14.sp, color = colors.textPrimary),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { viewModel.submitSearch(query) }),
                     modifier = Modifier.weight(1f),
                     decorationBox = { innerTextField ->
                         Box {
@@ -124,36 +134,73 @@ fun SearchScreen(
 @Composable
 private fun SearchHome(viewModel: SearchViewModel) {
     val colors = LocalQMusicColors.current
+    val history by viewModel.history.collectAsState()
+
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
-        item {
-            SectionTitle(title = stringResource(R.string.search_history))
-        }
-        item {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(9.dp),
-            ) {
-                listOf("海阔天空", "Beyond", "纯音乐").forEach { keyword ->
+        // 搜索历史（真实持久化，可删除/清空）
+        if (history.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        keyword,
-                        fontSize = 12.5.sp,
+                        stringResource(R.string.search_history),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        stringResource(R.string.clear_history),
+                        fontSize = 12.sp,
                         color = colors.textSecondary,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(colors.card)
-                            .clickable { viewModel.onQueryChange(keyword) }
-                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { viewModel.clearHistory() }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
                     )
                 }
             }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                ) {
+                    itemsIndexed(history) { _, keyword ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(colors.card)
+                                .clickable { viewModel.submitSearch(keyword) }
+                                .padding(start = 14.dp, end = 6.dp, top = 7.dp, bottom = 7.dp),
+                        ) {
+                            Text(keyword, fontSize = 12.5.sp, color = colors.textSecondary)
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.delete_history),
+                                tint = colors.textTertiary,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .clickable { viewModel.removeHistory(keyword) }
+                                    .padding(2.dp),
+                            )
+                        }
+                    }
+                }
+            }
         }
+
         item {
             SectionTitle(title = stringResource(R.string.hot_search))
         }
         itemsIndexed(viewModel.hotKeywords) { index, keyword ->
             Row(
                 modifier = Modifier.fillMaxWidth()
-                    .clickable { viewModel.onQueryChange(keyword) }
+                    .clickable { viewModel.submitSearch(keyword) }
                     .padding(horizontal = 16.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

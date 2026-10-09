@@ -1,6 +1,7 @@
 package com.qmusic.ui.mine
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +23,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +53,7 @@ import com.qmusic.data.local.entity.History
 import com.qmusic.data.model.Album
 import com.qmusic.data.model.Artist
 import com.qmusic.data.model.Song
+import com.qmusic.ui.components.PrivacyDialog
 import com.qmusic.ui.components.SectionTitle
 import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.theme.GradientEnd
@@ -70,11 +76,13 @@ fun MineScreen(
     val colors = LocalQMusicColors.current
     val favorites by viewModel.favorites.collectAsState()
     val history by viewModel.history.collectAsState()
+    var showPrivacy by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().background(colors.background),
-        contentPadding = PaddingValues(bottom = 24.dp),
-    ) {
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().background(colors.background),
+            contentPadding = PaddingValues(bottom = 24.dp),
+        ) {
         item { MineHeader() }
 
         item {
@@ -118,6 +126,35 @@ fun MineScreen(
             }
         }
 
+        // 隐私政策入口
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 10.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.card)
+                    .clickable { showPrivacy = true }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.privacy_policy),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+
         item { SectionTitle(title = stringResource(R.string.liked_songs), more = "${favorites.size} ${stringResource(R.string.songs)}") }
         if (favorites.isEmpty()) {
             item { EmptyText(stringResource(R.string.empty_favorite)) }
@@ -135,6 +172,15 @@ fun MineScreen(
                 SongRow(song = item.toSong(), onClick = { onPlaySong(item.toSong()) })
             }
         }
+    }
+
+    // 隐私政策查看弹窗（仅确认关闭）
+    if (showPrivacy) {
+        PrivacyDialog(
+            onAgree = { showPrivacy = false },
+            requireChoice = false,
+        )
+    }
     }
 }
 

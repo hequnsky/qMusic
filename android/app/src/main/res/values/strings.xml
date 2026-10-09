@@ -51,4 +51,15 @@
     <string name="found_songs">找到 %1$d 首相关歌曲</string>
     <string name="no_result">未找到相关歌曲，换个关键词试试～</string>
     <string name="search_error">搜索失败，请检查网络</string>
+    <string name="clear_history">清空</string>
+    <string name="no_history">暂无搜索历史</string>
+    <string name="delete_history">删除该历史</string>
+
+    <!-- 隐私与设置 -->
+    <string name="settings">设置</string>
+    <string name="privacy_policy">隐私政策</string>
+    <string name="privacy_title">隐私政策</string>
+    <string name="privacy_agree">同意并继续</string>
+    <string name="privacy_disagree">不同意</string>
+    <string name="privacy_content">感谢使用汽水音乐（qMusic）。\n\n1. 我们仅在本机存储你的使用数据：搜索历史、播放历史与收藏列表，用于提供个性化体验，不会上传至任何服务器。\n2. 音乐内容与播放地址来自第三方平台的公开接口，版权归原作者所有。\n3. 本项目仅用于学习与技术交流，请勿用于商业用途。</string>
 </resources>

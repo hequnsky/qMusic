@@ -1,5 +1,6 @@
 package com.qmusic
 
+import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,6 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.qmusic.data.local.PrivacyPref
+import com.qmusic.ui.components.PrivacyDialog
 import com.qmusic.ui.navigation.MainScreen
 import com.qmusic.ui.theme.QMusicTheme
 import com.qmusic.ui.theme.ThemePref
@@ -21,6 +24,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             var darkTheme by remember { mutableStateOf(ThemePref.isDark(context)) }
+            var privacyAccepted by remember { mutableStateOf(PrivacyPref.isAccepted(context)) }
+
             QMusicTheme(darkTheme = darkTheme) {
                 MainScreen(
                     darkMode = darkTheme,
@@ -29,6 +34,19 @@ class MainActivity : ComponentActivity() {
                         ThemePref.setDark(context, dark)
                     },
                 )
+
+                // 首次启动隐私政策弹窗（必须明确同意）
+                if (!privacyAccepted) {
+                    PrivacyDialog(
+                        onAgree = {
+                            PrivacyPref.setAccepted(context, true)
+                            privacyAccepted = true
+                        },
+                        onDisagree = {
+                            (context as? Activity)?.finish()
+                        },
+                    )
+                }
             }
         }
     }
