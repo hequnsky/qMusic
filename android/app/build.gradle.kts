@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,14 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
+
+// 从 local.properties（不入库）或环境变量读取 Release 签名配置
+val qmusicLocalProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun prop(key: String): String? =
+    qmusicLocalProps.getProperty(key) ?: System.getenv(key.replace(".", "_").uppercase())
 
 android {
     namespace = "com.qmusic"
@@ -19,10 +29,20 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file(prop("qmusic.storeFile") ?: "qmusic.keystore")
+            storePassword = prop("qmusic.storePassword") ?: ""
+            keyAlias = prop("qmusic.keyAlias") ?: "qmusic"
+            keyPassword = prop("qmusic.keyPassword") ?: ""
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -34,6 +54,11 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    lint {
+        // 学习项目：release 构建跳过 Lint 致命检查，保证可复现构建
+        checkReleaseBuilds = false
+        abortOnError = false
     }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"

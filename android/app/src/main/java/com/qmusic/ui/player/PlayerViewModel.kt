@@ -34,6 +34,9 @@ class PlayerViewModel(
 
     fun prev() = playerController.prev()
 
+    /** 播放队列中指定位置的歌曲 */
+    fun playAt(index: Int) = playerController.playAt(index)
+
     fun seekTo(ms: Long) = playerController.seekTo(ms)
 
     fun toggleFavorite() {

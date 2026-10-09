@@ -2,6 +2,7 @@ package com.qmusic.ui.player
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notes
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -62,6 +66,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import com.qmusic.data.MusicRepository
+import com.qmusic.data.model.Song
 import com.qmusic.player.PlayerController
 import com.qmusic.player.PlayerUiState
 import com.qmusic.ui.components.SongCover
@@ -85,6 +90,7 @@ fun PlayerScreen(
     )
     val state by viewModel.uiState.collectAsState()
     var showLyrics by rememberSaveable { mutableStateOf(false) }
+    var showQueue by rememberSaveable { mutableStateOf(false) }
 
     if (showLyrics) {
         LyricView(state = state, onBack = { showLyrics = false })
@@ -214,7 +220,7 @@ fun PlayerScreen(
                     IconButton(onClick = { viewModel.next() }) {
                         Icon(Icons.Filled.SkipNext, contentDescription = "下一首", tint = Color.White, modifier = Modifier.size(34.dp))
                     }
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = { showQueue = true }) {
                         Icon(Icons.Filled.QueueMusic, contentDescription = "播放列表", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(22.dp))
                     }
                 }
@@ -248,6 +254,137 @@ fun PlayerScreen(
                     .background(Color(0xCC000000))
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             )
+        }
+
+        // 播放列表弹窗
+        if (showQueue) {
+            QueuePanel(
+                queue = state.queue,
+                currentSongId = state.song?.id,
+                onPlayAt = { index ->
+                    viewModel.playAt(index)
+                    showQueue = false
+                },
+                onClose = { showQueue = false },
+            )
+        }
+    }
+}
+
+@Composable
+private fun QueuePanel(
+    queue: List<Song>,
+    currentSongId: Long?,
+    onPlayAt: (Int) -> Unit,
+    onClose: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x99000000))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClose,
+            ),
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .fillMaxHeight(0.65f)
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(Color(0xFF1B1B1F))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                )
+                .padding(top = 8.dp, bottom = 28.dp),
+        ) {
+            // 拖拽指示条
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 8.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.2f)),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "播放列表（${queue.size}）",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Filled.Close, contentDescription = "关闭", tint = Color.White)
+                }
+            }
+            if (queue.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("队列为空", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp)
+                }
+            } else {
+                LazyColumn(Modifier.fillMaxSize()) {
+                    itemsIndexed(queue, key = { _, song -> song.id }) { index, song ->
+                        val isCurrent = song.id == currentSongId
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPlayAt(index) }
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "${index + 1}",
+                                fontSize = 12.sp,
+                                color = if (isCurrent) GradientStart else Color.White.copy(alpha = 0.35f),
+                                modifier = Modifier.width(28.dp),
+                            )
+                            SongCover(url = song.coverUrl, size = 40, corner = 8)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    song.name,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.75f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    song.artistName,
+                                    fontSize = 11.sp,
+                                    color = Color.White.copy(alpha = 0.4f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            if (isCurrent) {
+                                Icon(
+                                    Icons.Filled.VolumeUp,
+                                    contentDescription = "正在播放",
+                                    tint = GradientStart,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            } else {
+                                Text(
+                                    formatDuration(song.durationMs),
+                                    fontSize = 11.sp,
+                                    color = Color.White.copy(alpha = 0.35f),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -143,6 +143,14 @@ class PlayerController(
         play(queue, prev)
     }
 
+    /** 播放队列中指定位置的歌曲 */
+    fun playAt(index: Int) {
+        val state = _uiState.value
+        val queue = state.queue
+        if (queue.isEmpty()) return
+        play(queue, index.coerceIn(0, queue.lastIndex))
+    }
+
     fun seekTo(ms: Long) {
         player?.seekTo(ms)
     }
