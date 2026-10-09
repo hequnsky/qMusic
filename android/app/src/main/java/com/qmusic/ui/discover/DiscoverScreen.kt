@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
+import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.Song
@@ -56,8 +58,7 @@ import com.qmusic.ui.components.SectionTitle
 import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
-import com.qmusic.ui.theme.TextPrimary
-import com.qmusic.ui.theme.TextSecondary
+import com.qmusic.ui.theme.LocalQMusicColors
 
 @Composable
 fun DiscoverScreen(
@@ -73,9 +74,10 @@ fun DiscoverScreen(
         },
     )
     val state by viewModel.uiState.collectAsState()
+    val colors = LocalQMusicColors.current
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().background(colors.background),
         contentPadding = PaddingValues(bottom = 16.dp),
     ) {
         item { TopBar(onOpenSearch = onOpenSearch, onOpenMine = onOpenMine) }
@@ -91,7 +93,7 @@ fun DiscoverScreen(
 
         item { ChipsRow() }
 
-        item { SectionTitle(title = "热门歌单") }
+        item { SectionTitle(title = stringResource(R.string.hot_playlist)) }
         item {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -103,7 +105,7 @@ fun DiscoverScreen(
             }
         }
 
-        item { SectionTitle(title = "为你推荐") }
+        item { SectionTitle(title = stringResource(R.string.for_you)) }
 
         val error = state.error
 
@@ -121,10 +123,10 @@ fun DiscoverScreen(
                         modifier = Modifier.fillMaxWidth().padding(top = 60.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text(error, color = TextSecondary, fontSize = 13.sp)
+                        Text(error, color = colors.textSecondary, fontSize = 13.sp)
                         Spacer(Modifier.height(14.dp))
                         Text(
-                            "重试",
+                            stringResource(R.string.retry),
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -154,6 +156,7 @@ fun DiscoverScreen(
 
 @Composable
 private fun TopBar(onOpenSearch: () -> Unit, onOpenMine: () -> Unit) {
+    val colors = LocalQMusicColors.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -167,14 +170,14 @@ private fun TopBar(onOpenSearch: () -> Unit, onOpenMine: () -> Unit) {
                 Text("♪", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.width(6.dp))
-            Text("汽水音乐", fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+            Text(stringResource(R.string.app_name), fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
         }
         Spacer(Modifier.weight(1f))
         IconButton(onClick = onOpenSearch) {
-            Icon(Icons.Filled.Search, contentDescription = "搜索", tint = TextPrimary, modifier = Modifier.size(22.dp))
+            Icon(Icons.Filled.Search, contentDescription = "搜索", tint = colors.textPrimary, modifier = Modifier.size(22.dp))
         }
         IconButton(onClick = onOpenMine) {
-            Icon(Icons.Filled.Person, contentDescription = "我的", tint = TextPrimary, modifier = Modifier.size(22.dp))
+            Icon(Icons.Filled.Person, contentDescription = "我的", tint = colors.textPrimary, modifier = Modifier.size(22.dp))
         }
     }
 }
@@ -223,7 +226,7 @@ private fun HeroCard(
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "每日推荐",
+                    stringResource(R.string.daily_recommend),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFFFFD9C9),
@@ -244,7 +247,7 @@ private fun HeroCard(
                 if (playlist != null) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "▶ ${com.qmusic.ui.components.formatPlayCount(playlist.playCount)} 次播放",
+                        "▶ ${com.qmusic.ui.components.formatPlayCount(playlist.playCount)} ${stringResource(R.string.times_played)}",
                         fontSize = 11.sp,
                         color = Color.White.copy(alpha = 0.6f),
                     )
@@ -265,7 +268,7 @@ private fun HeroCard(
             }
         }
         Text(
-            "🔄 换一换",
+            "🔄 ${stringResource(R.string.change)}",
             fontSize = 12.sp,
             color = Color.White.copy(alpha = 0.85f),
             modifier = Modifier
@@ -281,6 +284,7 @@ private fun HeroCard(
 
 @Composable
 private fun ChipsRow() {
+    val colors = LocalQMusicColors.current
     val chips = listOf("每日推荐", "热歌榜", "新歌速递", "华语", "欧美", "纯音乐", "摇滚", "民谣")
     Row(
         modifier = Modifier
@@ -294,10 +298,10 @@ private fun ChipsRow() {
                 chip,
                 fontSize = 13.sp,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (selected) Color.White else TextPrimary,
+                color = if (selected) Color.White else colors.textPrimary,
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (selected) Color(0xFF15161A) else Color.White)
+                    .background(if (selected) Color(0xFF15161A) else colors.card)
                     .clickable {}
                     .padding(horizontal = 14.dp, vertical = 7.dp),
             )

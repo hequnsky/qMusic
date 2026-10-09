@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.PlaylistDetail
 import com.qmusic.data.model.Song
@@ -51,7 +53,7 @@ import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.components.formatPlayCount
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
-import com.qmusic.ui.theme.TextSecondary
+import com.qmusic.ui.theme.LocalQMusicColors
 
 /**
  * 歌单详情页：展示歌单封面、歌曲列表，支持整单播放与下拉刷新。
@@ -71,8 +73,9 @@ fun PlaylistDetailScreen(
         },
     )
     val state by viewModel.uiState.collectAsState()
+    val colors = LocalQMusicColors.current
 
-    Box(Modifier.fillMaxSize().background(Color(0xFFF6F6F8))) {
+    Box(Modifier.fillMaxSize().background(colors.background)) {
         when {
             state.detail == null && state.loading -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -87,10 +90,10 @@ fun PlaylistDetailScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(error, color = TextSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    Text(error, color = colors.textSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        "重试",
+                        stringResource(R.string.retry),
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -123,10 +126,10 @@ fun PlaylistDetailScreen(
                         }
                         item {
                             Text(
-                                "歌曲列表 · 共 ${detail.tracks.size} 首",
+                                "${stringResource(R.string.song_list)} · 共 ${detail.tracks.size} ${stringResource(R.string.songs)}",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = TextSecondary,
+                                color = colors.textSecondary,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             )
                         }
@@ -179,7 +182,7 @@ private fun PlaylistHeader(detail: PlaylistDetail) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "▶ ${formatPlayCount(detail.playCount)} 次播放 · 共 ${detail.trackCount} 首",
+            "▶ ${formatPlayCount(detail.playCount)} ${stringResource(R.string.times_played)} · 共 ${detail.trackCount} ${stringResource(R.string.songs)}",
             fontSize = 12.sp,
             color = Color.White.copy(alpha = 0.7f),
         )
@@ -212,7 +215,7 @@ private fun PlayAllButton(onClick: () -> Unit, enabled: Boolean) {
         )
         Spacer(Modifier.width(6.dp))
         Text(
-            "播放全部",
+            stringResource(R.string.play_all),
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             color = if (enabled) Color.White else Color(0xFF9A9AA2),

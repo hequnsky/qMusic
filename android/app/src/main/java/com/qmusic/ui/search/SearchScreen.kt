@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -41,15 +42,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Song
 import com.qmusic.ui.components.SectionTitle
 import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
-import com.qmusic.ui.theme.TextPrimary
-import com.qmusic.ui.theme.TextSecondary
-import com.qmusic.ui.theme.TextTertiary
+import com.qmusic.ui.theme.LocalQMusicColors
 
 @Composable
 fun SearchScreen(
@@ -61,37 +61,38 @@ fun SearchScreen(
             initializer { SearchViewModel(repository) }
         },
     )
+    val colors = LocalQMusicColors.current
     val query by viewModel.query.collectAsState()
     val results by viewModel.results.collectAsState()
     val searching by viewModel.searching.collectAsState()
 
-    Column(Modifier.fillMaxSize().background(Color.White)) {
+    Column(Modifier.fillMaxSize().background(colors.background)) {
         // 搜索框
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 44.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("搜索", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+            Text(stringResource(R.string.search), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
             Spacer(Modifier.width(14.dp))
             Row(
                 modifier = Modifier.weight(1f)
                     .clip(CircleShape)
-                    .background(Color(0xFFF2F2F5))
+                    .background(colors.card)
                     .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Filled.Search, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.Search, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 BasicTextField(
                     value = query,
                     onValueChange = { viewModel.onQueryChange(it) },
                     singleLine = true,
-                    textStyle = TextStyle(fontSize = 14.sp, color = TextPrimary),
+                    textStyle = TextStyle(fontSize = 14.sp, color = colors.textPrimary),
                     modifier = Modifier.weight(1f),
                     decorationBox = { innerTextField ->
                         Box {
                             if (query.isEmpty()) {
-                                Text("搜索歌曲、歌手、歌单", fontSize = 13.sp, color = Color(0xFFA9A9B1))
+                                Text(stringResource(R.string.search_hint), fontSize = 13.sp, color = colors.textTertiary)
                             }
                             innerTextField()
                         }
@@ -101,7 +102,7 @@ fun SearchScreen(
                     Icon(
                         Icons.Filled.Close,
                         contentDescription = "清空",
-                        tint = TextSecondary,
+                        tint = colors.textSecondary,
                         modifier = Modifier.size(16.dp).clickable { viewModel.onQueryChange("") },
                     )
                 }
@@ -122,9 +123,10 @@ fun SearchScreen(
 
 @Composable
 private fun SearchHome(viewModel: SearchViewModel) {
+    val colors = LocalQMusicColors.current
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
         item {
-            SectionTitle(title = "搜索历史")
+            SectionTitle(title = stringResource(R.string.search_history))
         }
         item {
             Row(
@@ -135,10 +137,10 @@ private fun SearchHome(viewModel: SearchViewModel) {
                     Text(
                         keyword,
                         fontSize = 12.5.sp,
-                        color = TextSecondary,
+                        color = colors.textSecondary,
                         modifier = Modifier
                             .clip(RoundedCornerShape(18.dp))
-                            .background(Color(0xFFF2F2F5))
+                            .background(colors.card)
                             .clickable { viewModel.onQueryChange(keyword) }
                             .padding(horizontal = 14.dp, vertical = 7.dp),
                     )
@@ -146,7 +148,7 @@ private fun SearchHome(viewModel: SearchViewModel) {
             }
         }
         item {
-            SectionTitle(title = "热门搜索")
+            SectionTitle(title = stringResource(R.string.hot_search))
         }
         itemsIndexed(viewModel.hotKeywords) { index, keyword ->
             Row(
@@ -159,7 +161,7 @@ private fun SearchHome(viewModel: SearchViewModel) {
                     "${index + 1}",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (index < 3) GradientStart else TextTertiary,
+                    color = if (index < 3) GradientStart else colors.textTertiary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.width(24.dp),
                 )
@@ -167,7 +169,7 @@ private fun SearchHome(viewModel: SearchViewModel) {
                     keyword,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary,
+                    color = colors.textPrimary,
                     modifier = Modifier.weight(1f),
                 )
                 if (index == 0) {
@@ -193,6 +195,7 @@ private fun SearchResultList(
     searching: Boolean,
     onPlaySong: (List<Song>, Int) -> Unit,
 ) {
+    val colors = LocalQMusicColors.current
     Box(Modifier.fillMaxSize()) {
         if (searching && results.isEmpty()) {
             CircularProgressIndicator(
@@ -203,9 +206,9 @@ private fun SearchResultList(
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 6.dp, bottom = 24.dp)) {
             item {
                 Text(
-                    "找到 ${results.size} 首相关歌曲",
+                    stringResource(R.string.found_songs, results.size),
                     fontSize = 12.sp,
-                    color = TextSecondary,
+                    color = colors.textSecondary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                 )
             }
@@ -218,9 +221,9 @@ private fun SearchResultList(
             if (results.isEmpty() && !searching) {
                 item {
                     Text(
-                        "未找到相关歌曲，换个关键词试试～",
+                        stringResource(R.string.no_result),
                         fontSize = 13.sp,
-                        color = TextTertiary,
+                        color = colors.textTertiary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(top = 60.dp),
                     )

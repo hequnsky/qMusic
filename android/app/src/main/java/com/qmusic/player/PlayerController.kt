@@ -1,10 +1,13 @@
 package com.qmusic.player
 
 import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.media3.common.MediaItem
@@ -60,6 +63,7 @@ class PlayerController(
     private var player: ExoPlayer? = null
     private var serviceRef: WeakReference<PlayerService>? = null
     private var positionJob: Job? = null
+    private var lastArtworkBitmap: Bitmap? = null
 
     fun attachService(service: PlayerService) {
         serviceRef = WeakReference(service)
@@ -113,6 +117,7 @@ class PlayerController(
                 startForegroundService()
                 startPositionLoop()
                 loadLyrics(song.id)
+                updateWidget()
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "获取播放地址失败，请检查网络") }
             }
@@ -123,6 +128,7 @@ class PlayerController(
         val exo = player ?: return
         if (exo.isPlaying) exo.pause() else exo.play()
         updateNotification()
+        updateWidget()
     }
 
     fun next() {
@@ -160,6 +166,7 @@ class PlayerController(
         player?.stop()
         player?.clearMediaItems()
         _uiState.value = PlayerUiState()
+        updateWidget()
     }
 
     fun release() {
@@ -175,6 +182,7 @@ class PlayerController(
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _uiState.update { it.copy(isPlaying = isPlaying) }
                     updateNotification()
+                    updateWidget()
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -195,6 +203,7 @@ class PlayerController(
     private fun startPositionLoop() {
         positionJob?.cancel()
         positionJob = scope.launch {
+            var tick = 0
             while (isActive) {
                 val exo = player ?: break
                 val pos = exo.currentPosition
@@ -203,6 +212,9 @@ class PlayerController(
                 _uiState.update {
                     it.copy(positionMs = pos, currentLyricIndex = lyricIndex)
                 }
+                // 每 1 秒刷新一次通知进度条
+                if (tick % 2 == 0) updateNotification()
+                tick++
                 delay(500)
             }
         }
@@ -230,17 +242,27 @@ class PlayerController(
         val service = serviceRef?.get() ?: return
         val state = _uiState.value
         val song = state.song ?: return
-        val notification = buildNotification(state, song, null)
+        val notification = buildNotification(state, song, lastArtworkBitmap)
         service.startForeground(PlayerService.NOTIFICATION_ID, notification)
-        loadNotificationArtwork(song) { bitmap ->
-            if (bitmap != null) {
-                try {
-                    val updated = buildNotification(state, song, bitmap)
-                    NotificationManagerCompat.from(context)
-                        .notify(PlayerService.NOTIFICATION_ID, updated)
-                } catch (_: SecurityException) {
-                    // 未授予通知权限，忽略
+        if (lastArtworkBitmap == null) {
+            loadNotificationArtwork(song) { bitmap ->
+                lastArtworkBitmap = bitmap
+                if (bitmap != null) {
+                    try {
+                        val updated = buildNotification(state, song, bitmap)
+                        NotificationManagerCompat.from(context)
+                            .notify(PlayerService.NOTIFICATION_ID, updated)
+                    } catch (_: SecurityException) {
+                        // 未授予通知权限，忽略
+                    }
                 }
+            }
+        } else {
+            try {
+                NotificationManagerCompat.from(context)
+                    .notify(PlayerService.NOTIFICATION_ID, notification)
+            } catch (_: SecurityException) {
+                // 未授予通知权限，忽略
             }
         }
     }
@@ -281,6 +303,9 @@ class PlayerController(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        val durationMs = if (state.durationMs > 0) state.durationMs else 0L
+        val positionMs = if (durationMs > 0) state.positionMs.coerceIn(0, durationMs) else 0L
+
         val builder = NotificationCompat.Builder(context, PlayerService.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(song.name)
@@ -301,26 +326,111 @@ class PlayerController(
                 playPauseIntent,
             )
             .addAction(R.drawable.ic_notification, "下一首", nextIntent)
+        if (durationMs > 0) {
+            builder
+                .setProgress((durationMs / 1000).toInt(), (positionMs / 1000).toInt(), false)
+                .setSubText("${formatTime(positionMs)} / ${formatTime(durationMs)}")
+        }
         if (bitmap != null) builder.setLargeIcon(bitmap)
         return builder.build()
+    }
+
+    private fun formatTime(ms: Long): String {
+        val totalSec = ms / 1000
+        val m = totalSec / 60
+        val s = totalSec % 60
+        return "%d:%02d".format(m, s)
+    }
+
+    // ---------- 桌面小组件 ----------
+
+    fun updateWidget() {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val ids = appWidgetManager.getAppWidgetIds(
+            ComponentName(context, WidgetPlayerProvider::class.java),
+        )
+        if (ids.isEmpty()) return
+        val state = _uiState.value
+        val song = state.song
+        val views = RemoteViews(context.packageName, R.layout.widget_player)
+
+        // 点击小组件整体打开 App
+        val openIntent = PendingIntent.getActivity(
+            context,
+            10,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        views.setOnClickPendingIntent(R.id.widget_root, openIntent)
+
+        val prevPi = PendingIntent.getBroadcast(
+            context,
+            11,
+            Intent(context, WidgetPlayerProvider::class.java)
+                .setAction(WidgetPlayerProvider.ACTION_WIDGET_PREV),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val playPausePi = PendingIntent.getBroadcast(
+            context,
+            12,
+            Intent(context, WidgetPlayerProvider::class.java)
+                .setAction(WidgetPlayerProvider.ACTION_WIDGET_PLAY_PAUSE),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val nextPi = PendingIntent.getBroadcast(
+            context,
+            13,
+            Intent(context, WidgetPlayerProvider::class.java)
+                .setAction(WidgetPlayerProvider.ACTION_WIDGET_NEXT),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        views.setOnClickPendingIntent(R.id.widget_prev, prevPi)
+        views.setOnClickPendingIntent(R.id.widget_play_pause, playPausePi)
+        views.setOnClickPendingIntent(R.id.widget_next, nextPi)
+
+        if (song != null) {
+            views.setTextViewText(R.id.widget_title, song.name)
+            views.setTextViewText(R.id.widget_artist, song.artistName)
+        } else {
+            views.setTextViewText(R.id.widget_title, "未在播放")
+            views.setTextViewText(R.id.widget_artist, "qMusic")
+        }
+        views.setImageViewResource(
+            R.id.widget_play_pause,
+            if (state.isPlaying) R.drawable.ic_pause_widget else R.drawable.ic_play_widget,
+        )
+        appWidgetManager.updateAppWidget(ids, views)
+
+        // 异步加载封面
+        val coverUrl = song?.coverUrl
+        if (coverUrl != null) {
+            scope.launch {
+                val bitmap = loadCoverBitmap(coverUrl)
+                if (bitmap != null) {
+                    views.setImageViewBitmap(R.id.widget_cover, bitmap)
+                    appWidgetManager.updateAppWidget(ids, views)
+                }
+            }
+        }
+    }
+
+    private suspend fun loadCoverBitmap(url: String): Bitmap? = try {
+        val imageLoader = context.imageLoader
+        val result = imageLoader.execute(
+            ImageRequest.Builder(context)
+                .data(url)
+                .allowHardware(false)
+                .build(),
+        )
+        (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+    } catch (_: Exception) {
+        null
     }
 
     private fun loadNotificationArtwork(song: Song, onLoaded: (Bitmap?) -> Unit) {
         val url = song.coverUrl ?: return onLoaded(null)
         scope.launch {
-            val bitmap = try {
-                val imageLoader = context.imageLoader
-                val result = imageLoader.execute(
-                    ImageRequest.Builder(context)
-                        .data(url)
-                        .allowHardware(false)
-                        .build(),
-                )
-                (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
-            } catch (e: Exception) {
-                null
-            }
-            onLoaded(bitmap)
+            onLoaded(loadCoverBitmap(url))
         }
     }
 }

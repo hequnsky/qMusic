@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">QMusic</string>
+    <string name="discover">Discover</string>
+    <string name="player">Player</string>
+    <string name="mine">Me</string>
+
+    <!-- Discover -->
+    <string name="daily_recommend">Daily Picks</string>
+    <string name="change">Shuffle</string>
+    <string name="hot_playlist">Hot Playlists</string>
+    <string name="more">More ›</string>
+    <string name="for_you">Made for You</string>
+
+    <!-- Playlist detail -->
+    <string name="play_all">Play All</string>
+    <string name="song_list">Song List</string>
+    <string name="songs">songs</string>
+    <string name="times_played">plays</string>
+    <string name="retry">Retry</string>
+    <string name="load_failed">Load failed. Check your network and retry.</string>
+
+    <!-- Player / Lyrics -->
+    <string name="playlist">Playlist</string>
+    <string name="empty_queue">Queue is empty</string>
+    <string name="no_lyrics">No lyrics</string>
+    <string name="back_to_current">Back to current line</string>
+    <string name="back">Back</string>
+    <string name="close">Close</string>
+    <string name="currently_playing">Now playing</string>
+    <string name="prev">Previous</string>
+    <string name="next">Next</string>
+    <string name="pause">Pause</string>
+    <string name="play_pause">Play/Pause</string>
+    <string name="not_playing">Not playing</string>
+
+    <!-- Mine -->
+    <string name="liked_songs">Favorites</string>
+    <string name="recent_plays">Recent</string>
+    <string name="local_music">Local Music</string>
+    <string name="dark_mode">Dark Mode</string>
+    <string name="dark_mode_desc">Switch light / dark appearance</string>
+    <string name="empty_favorite">No favorites yet. Tap ♥ on the player page!</string>
+    <string name="empty_history">No play history</string>
+
+    <!-- Search -->
+    <string name="search">Search</string>
+    <string name="search_hint">Search songs / artists</string>
+    <string name="search_history">Search History</string>
+    <string name="hot_search">Hot Search</string>
+    <string name="found_songs">%1$d songs found</string>
+    <string name="no_result">No results. Try another keyword.</string>
+    <string name="search_error">Search failed. Check your network.</string>
+</resources>

@@ -33,20 +33,20 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.qmusic.R
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.Song
 import com.qmusic.player.PlayerUiState
 import com.qmusic.ui.theme.Dark
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
-import com.qmusic.ui.theme.TextPrimary
-import com.qmusic.ui.theme.TextSecondary
-import com.qmusic.ui.theme.TextTertiary
+import com.qmusic.ui.theme.LocalQMusicColors
 
 /** 时长格式化：45000 -> 00:45 */
 fun formatDuration(ms: Long): String {
@@ -91,6 +91,7 @@ fun SongRow(
     onClick: () -> Unit,
     trailing: @Composable (() -> Unit)? = null,
 ) {
+    val colors = LocalQMusicColors.current
     Row(
         modifier = Modifier.fillMaxWidth()
             .clickable(onClick = onClick)
@@ -104,7 +105,7 @@ fun SongRow(
                 song.name,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextPrimary,
+                color = colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -112,7 +113,7 @@ fun SongRow(
             Text(
                 "${song.artistName} · ${song.albumName}",
                 fontSize = 12.sp,
-                color = TextSecondary,
+                color = colors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -120,26 +121,27 @@ fun SongRow(
         if (trailing != null) {
             trailing()
         } else {
-            Text(formatDuration(song.durationMs), fontSize = 11.sp, color = TextTertiary)
+            Text(formatDuration(song.durationMs), fontSize = 11.sp, color = colors.textTertiary)
         }
     }
 }
 
 /** 区块标题 */
 @Composable
-fun SectionTitle(title: String, more: String = "更多 ›", onMore: () -> Unit = {}) {
+fun SectionTitle(title: String, more: String = stringResource(R.string.more), onMore: () -> Unit = {}) {
+    val colors = LocalQMusicColors.current
     Row(
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 16.dp)
             .padding(top = 18.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+        Text(title, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
         Spacer(Modifier.weight(1f))
         Text(
             more,
             fontSize = 12.sp,
-            color = TextSecondary,
+            color = colors.textSecondary,
             modifier = Modifier.clickable(onClick = onMore),
         )
     }
@@ -148,6 +150,7 @@ fun SectionTitle(title: String, more: String = "更多 ›", onMore: () -> Unit 
 /** 横向歌单卡片 */
 @Composable
 fun PlaylistCard(playlist: Playlist, onClick: () -> Unit) {
+    val colors = LocalQMusicColors.current
     Column(
         modifier = Modifier.width(128.dp).clickable(onClick = onClick),
     ) {
@@ -181,7 +184,7 @@ fun PlaylistCard(playlist: Playlist, onClick: () -> Unit) {
             playlist.name,
             fontSize = 12.5.sp,
             fontWeight = FontWeight.SemiBold,
-            color = TextPrimary,
+            color = colors.textPrimary,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             lineHeight = 17.sp,
@@ -262,17 +265,30 @@ fun QMusicBottomBar(
     onTabSelected: (Int) -> Unit,
     onPlayTab: () -> Unit,
 ) {
-    Surface(color = Color.White, shadowElevation = 8.dp) {
+    val colors = LocalQMusicColors.current
+    Surface(color = colors.bottomBar, shadowElevation = 8.dp) {
         Row(
             Modifier.fillMaxWidth().height(64.dp).padding(bottom = 8.dp),
         ) {
-            BottomTabItem(label = "发现", icon = Icons.Filled.Home, selected = selectedTab == 0) {
+            BottomTabItem(
+                label = stringResource(R.string.discover),
+                icon = Icons.Filled.Home,
+                selected = selectedTab == 0,
+            ) {
                 onTabSelected(0)
             }
-            BottomTabItem(label = "播放", icon = Icons.Filled.MusicNote, selected = false) {
+            BottomTabItem(
+                label = stringResource(R.string.player),
+                icon = Icons.Filled.MusicNote,
+                selected = false,
+            ) {
                 onPlayTab()
             }
-            BottomTabItem(label = "我的", icon = Icons.Filled.Person, selected = selectedTab == 1) {
+            BottomTabItem(
+                label = stringResource(R.string.mine),
+                icon = Icons.Filled.Person,
+                selected = selectedTab == 1,
+            ) {
                 onTabSelected(1)
             }
         }
@@ -286,6 +302,7 @@ private fun RowScope.BottomTabItem(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val colors = LocalQMusicColors.current
     Column(
         modifier = Modifier.weight(1f).fillMaxWidth().height(56.dp).clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -294,7 +311,7 @@ private fun RowScope.BottomTabItem(
         Icon(
             icon,
             contentDescription = label,
-            tint = if (selected) TextPrimary else Color(0xFF9A9AA2),
+            tint = if (selected) colors.textPrimary else colors.tabInactive,
             modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.height(3.dp))
@@ -302,7 +319,7 @@ private fun RowScope.BottomTabItem(
             label,
             fontSize = 10.5.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) TextPrimary else Color(0xFF9A9AA2),
+            color = if (selected) colors.textPrimary else colors.tabInactive,
         )
     }
 }

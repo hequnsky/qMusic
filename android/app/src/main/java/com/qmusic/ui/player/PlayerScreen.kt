@@ -48,7 +48,9 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +58,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,6 +68,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
+import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Song
 import com.qmusic.player.PlayerController
@@ -76,6 +80,8 @@ import com.qmusic.ui.theme.Dark
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlayerScreen(
@@ -115,7 +121,7 @@ fun PlayerScreen(
                     Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "收起", tint = Color.White)
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("正在播放", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.currently_playing), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         "汽水音乐 · 每日推荐",
                         color = Color.White.copy(alpha = 0.5f),
@@ -203,7 +209,7 @@ fun PlayerScreen(
                         Icon(Icons.Filled.Repeat, contentDescription = "播放模式", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(22.dp))
                     }
                     IconButton(onClick = { viewModel.prev() }) {
-                        Icon(Icons.Filled.SkipPrevious, contentDescription = "上一首", tint = Color.White, modifier = Modifier.size(34.dp))
+                        Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.prev), tint = Color.White, modifier = Modifier.size(34.dp))
                     }
                     Box(
                         modifier = Modifier.size(68.dp).clip(CircleShape).background(Color.White)
@@ -212,16 +218,16 @@ fun PlayerScreen(
                     ) {
                         Icon(
                             if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (state.isPlaying) "暂停" else "播放",
+                            contentDescription = if (state.isPlaying) stringResource(R.string.pause) else stringResource(R.string.player),
                             tint = Dark,
                             modifier = Modifier.size(38.dp),
                         )
                     }
                     IconButton(onClick = { viewModel.next() }) {
-                        Icon(Icons.Filled.SkipNext, contentDescription = "下一首", tint = Color.White, modifier = Modifier.size(34.dp))
+                        Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.next), tint = Color.White, modifier = Modifier.size(34.dp))
                     }
                     IconButton(onClick = { showQueue = true }) {
-                        Icon(Icons.Filled.QueueMusic, contentDescription = "播放列表", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(22.dp))
+                        Icon(Icons.Filled.QueueMusic, contentDescription = stringResource(R.string.playlist), tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(22.dp))
                     }
                 }
             }
@@ -316,19 +322,19 @@ private fun QueuePanel(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "播放列表（${queue.size}）",
+                    "${stringResource(R.string.playlist)}（${queue.size}）",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Filled.Close, contentDescription = "关闭", tint = Color.White)
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close), tint = Color.White)
                 }
             }
             if (queue.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("队列为空", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp)
+                    Text(stringResource(R.string.empty_queue), color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp)
                 }
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
@@ -370,7 +376,7 @@ private fun QueuePanel(
                             if (isCurrent) {
                                 Icon(
                                     Icons.Filled.VolumeUp,
-                                    contentDescription = "正在播放",
+                                    contentDescription = stringResource(R.string.currently_playing),
                                     tint = GradientStart,
                                     modifier = Modifier.size(18.dp),
                                 )
@@ -438,13 +444,31 @@ private fun RotatingDisc(coverUrl: String?, isPlaying: Boolean) {
 @Composable
 private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     val current = state.currentLyricIndex
+    var userScrolling by remember { mutableStateOf(false) }
 
-    // 让当前歌词行始终滚动到视口中央
-    LaunchedEffect(current) {
-        if (current >= 0 && state.lyrics.isNotEmpty()) {
-            listState.animateScrollToItem(current.coerceAtLeast(0))
-        }
+    // 用户手动滚动时暂停自动跟随；停止滚动 2 秒后自动恢复
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .collectLatest { scrolling ->
+                if (scrolling) {
+                    userScrolling = true
+                } else {
+                    delay(2000)
+                    userScrolling = false
+                }
+            }
+    }
+
+    // 当前行变化时自动滚动居中（用户拖动期间不打扰）
+    LaunchedEffect(listState) {
+        snapshotFlow { Triple(current, userScrolling, state.lyrics.size) }
+            .collectLatest { (cur, scrolling, lyricCount) ->
+                if (cur >= 0 && !scrolling && lyricCount > 0) {
+                    listState.animateScrollToItem(cur.coerceAtLeast(0))
+                }
+            }
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF22152E))) {
@@ -456,7 +480,7 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "返回", tint = Color.White)
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.back), tint = Color.White)
                 }
                 Text(
                     state.song?.name ?: "",
@@ -470,7 +494,7 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
             }
             if (state.lyrics.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("暂无歌词", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp)
+                    Text(stringResource(R.string.no_lyrics), color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp)
                 }
             } else {
                 LazyColumn(
@@ -491,6 +515,26 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
                     }
                 }
             }
+        }
+        // 用户拖动期间显示“回到当前行”按钮
+        if (userScrolling && state.lyrics.isNotEmpty()) {
+            Text(
+                stringResource(R.string.back_to_current),
+                color = Color.White,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 76.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White.copy(alpha = 0.15f))
+                    .clickable {
+                        userScrolling = false
+                        if (current >= 0) {
+                            coroutineScope.launch { listState.animateScrollToItem(current) }
+                        }
+                    }
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+            )
         }
     }
 }

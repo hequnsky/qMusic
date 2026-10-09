@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.local.entity.Favorite
 import com.qmusic.data.local.entity.History
@@ -47,15 +50,16 @@ import com.qmusic.data.model.Artist
 import com.qmusic.data.model.Song
 import com.qmusic.ui.components.SectionTitle
 import com.qmusic.ui.components.SongRow
-import com.qmusic.ui.theme.Background
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
-import com.qmusic.ui.theme.TextPrimary
+import com.qmusic.ui.theme.LocalQMusicColors
 import com.qmusic.ui.theme.TextSecondary
 
 @Composable
 fun MineScreen(
     repository: MusicRepository,
+    darkMode: Boolean = false,
+    onThemeChanged: (Boolean) -> Unit = {},
     onPlaySong: (Song) -> Unit,
 ) {
     val viewModel: MineViewModel = viewModel(
@@ -63,11 +67,12 @@ fun MineScreen(
             initializer { MineViewModel(repository) }
         },
     )
+    val colors = LocalQMusicColors.current
     val favorites by viewModel.favorites.collectAsState()
     val history by viewModel.history.collectAsState()
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(Background),
+        modifier = Modifier.fillMaxSize().background(colors.background),
         contentPadding = PaddingValues(bottom = 24.dp),
     ) {
         item { MineHeader() }
@@ -77,24 +82,54 @@ fun MineScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                ActionCard(icon = Icons.Filled.Favorite, label = "我喜欢的")
-                ActionCard(icon = Icons.Filled.History, label = "最近播放")
-                ActionCard(icon = Icons.Filled.Folder, label = "本地音乐")
+                ActionCard(icon = Icons.Filled.Favorite, label = stringResource(R.string.liked_songs))
+                ActionCard(icon = Icons.Filled.History, label = stringResource(R.string.recent_plays))
+                ActionCard(icon = Icons.Filled.Folder, label = stringResource(R.string.local_music))
             }
         }
 
-        item { SectionTitle(title = "我喜欢的", more = "${favorites.size} 首") }
+        // 深色模式开关
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 18.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.card)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.dark_mode),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        stringResource(R.string.dark_mode_desc),
+                        fontSize = 11.sp,
+                        color = colors.textSecondary,
+                    )
+                }
+                Switch(checked = darkMode, onCheckedChange = onThemeChanged)
+            }
+        }
+
+        item { SectionTitle(title = stringResource(R.string.liked_songs), more = "${favorites.size} ${stringResource(R.string.songs)}") }
         if (favorites.isEmpty()) {
-            item { EmptyText("还没有喜欢的歌曲，快去播放页点 ❤️ 吧～") }
+            item { EmptyText(stringResource(R.string.empty_favorite)) }
         } else {
             items(favorites, key = { it.songId }) { favorite ->
                 SongRow(song = favorite.toSong(), onClick = { onPlaySong(favorite.toSong()) })
             }
         }
 
-        item { SectionTitle(title = "最近播放", more = "${history.size} 首") }
+        item { SectionTitle(title = stringResource(R.string.recent_plays), more = "${history.size} ${stringResource(R.string.songs)}") }
         if (history.isEmpty()) {
-            item { EmptyText("暂无播放记录") }
+            item { EmptyText(stringResource(R.string.empty_history)) }
         } else {
             items(history, key = { it.songId }) { item ->
                 SongRow(song = item.toSong(), onClick = { onPlaySong(item.toSong()) })
@@ -150,26 +185,28 @@ private fun MineHeader() {
 
 @Composable
 private fun RowScope.ActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+    val colors = LocalQMusicColors.current
     Column(
         modifier = Modifier
             .weight(1f)
             .clip(RoundedCornerShape(18.dp))
-            .background(Color.White)
+            .background(colors.card)
             .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(icon, contentDescription = null, tint = GradientStart, modifier = Modifier.size(26.dp))
         Spacer(Modifier.height(8.dp))
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
     }
 }
 
 @Composable
 private fun EmptyText(text: String) {
+    val colors = LocalQMusicColors.current
     Text(
         text,
         fontSize = 13.sp,
-        color = TextSecondary,
+        color = colors.textSecondary,
         modifier = Modifier.fillMaxWidth().padding(vertical = 30.dp),
         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
     )
