@@ -65,6 +65,7 @@ fun DiscoverScreen(
     onPlayAll: (List<Song>, Int) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenMine: () -> Unit,
+    onOpenPlaylist: (Long) -> Unit,
 ) {
     val viewModel: DiscoverViewModel = viewModel(
         factory = viewModelFactory {
@@ -97,7 +98,7 @@ fun DiscoverScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(state.playlists, key = { it.id }) { playlist ->
-                    PlaylistCard(playlist = playlist, onClick = {})
+                    PlaylistCard(playlist = playlist, onClick = { onOpenPlaylist(playlist.id) })
                 }
             }
         }

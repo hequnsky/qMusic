@@ -21,6 +21,7 @@ import com.qmusic.ui.components.QMusicBottomBar
 import com.qmusic.ui.discover.DiscoverScreen
 import com.qmusic.ui.mine.MineScreen
 import com.qmusic.ui.player.PlayerScreen
+import com.qmusic.ui.playlist.PlaylistDetailScreen
 import com.qmusic.ui.search.SearchScreen
 
 /** 主界面：底部导航 + 页面切换 + 迷你播放条 + 全屏播放页 */
@@ -32,6 +33,7 @@ fun MainScreen() {
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var playerOpen by rememberSaveable { mutableStateOf(false) }
+    var playlistDetailId by rememberSaveable { mutableStateOf<Long?>(null) }
     val playerState by playerController.uiState.collectAsState()
 
     Scaffold(
@@ -65,6 +67,7 @@ fun MainScreen() {
                     },
                     onOpenSearch = { selectedTab = 2 },
                     onOpenMine = { selectedTab = 1 },
+                    onOpenPlaylist = { playlistDetailId = it },
                 )
                 1 -> MineScreen(
                     repository = app.repository,
@@ -82,6 +85,18 @@ fun MainScreen() {
                 )
             }
         }
+    }
+
+    playlistDetailId?.let { id ->
+        PlaylistDetailScreen(
+            playlistId = id,
+            repository = app.repository,
+            onBack = { playlistDetailId = null },
+            onPlayAll = { songs, index ->
+                playerController.play(songs, index)
+                playerOpen = true
+            },
+        )
     }
 
     if (playerOpen) {

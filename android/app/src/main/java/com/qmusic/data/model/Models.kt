@@ -113,6 +113,7 @@ data class PlaylistDetail(
     val name: String = "",
     @SerialName("coverImgUrl") val coverImgUrl: String? = null,
     @SerialName("trackCount") val trackCount: Int = 0,
+    @SerialName("playCount") val playCount: Long = 0,
     val tracks: List<Song> = emptyList(),
 ) {
     val coverUrl: String? get() = coverImgUrl

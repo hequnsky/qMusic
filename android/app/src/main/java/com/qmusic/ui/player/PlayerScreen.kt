@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -301,13 +303,16 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
     val listState = rememberLazyListState()
     val current = state.currentLyricIndex
 
+    // 让当前歌词行始终滚动到视口中央
     LaunchedEffect(current) {
-        if (current >= 0) {
+        if (current >= 0 && state.lyrics.isNotEmpty()) {
             listState.animateScrollToItem(current.coerceAtLeast(0))
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Color(0xFF22152E))) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF22152E))) {
+        // 上下各留半屏 contentPadding，使当前行位于视口正中
+        val halfScreen = maxHeight / 2
         Column(Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 40.dp, start = 8.dp, end = 8.dp),
@@ -333,15 +338,16 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
             } else {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
-                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxSize().padding(bottom = 60.dp),
+                    contentPadding = PaddingValues(vertical = halfScreen),
                 ) {
                     itemsIndexed(state.lyrics) { index, line ->
+                        val isCurrent = index == current
                         Text(
                             line.content,
-                            fontSize = if (index == current) 17.sp else 15.sp,
-                            fontWeight = if (index == current) FontWeight.Bold else FontWeight.Normal,
-                            color = if (index == current) Color.White else Color.White.copy(alpha = 0.35f),
+                            fontSize = if (isCurrent) 17.sp else 15.sp,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.35f),
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 30.dp, vertical = 9.dp),
                         )
