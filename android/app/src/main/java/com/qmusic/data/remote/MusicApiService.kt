@@ -4,6 +4,7 @@ import com.qmusic.data.model.CommentResponse
 import com.qmusic.data.model.LyricResponse
 import com.qmusic.data.model.PersonalizedResponse
 import com.qmusic.data.model.PlaylistDetailResponse
+import com.qmusic.data.model.SearchHotResponse
 import com.qmusic.data.model.SearchResponse
 import com.qmusic.data.model.SongUrlResponse
 import com.qmusic.data.model.TopPlaylistResponse
@@ -21,6 +22,10 @@ interface MusicApiService {
         @Query("limit") limit: Int = 30,
         @Query("offset") offset: Int = 0,
     ): SearchResponse
+
+    /** 热门搜索词 */
+    @GET("search/hot")
+    suspend fun searchHot(): SearchHotResponse
 
     /** 获取歌曲播放地址 */
     @GET("song/url")

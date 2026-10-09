@@ -25,6 +25,9 @@ class MusicRepository(
     suspend fun search(keywords: String, limit: Int = 30): List<Song> =
         api.search(keywords, limit).result.songs
 
+    suspend fun getHotKeywords(limit: Int = 10): List<String> =
+        api.searchHot().result.hots.take(limit).map { it.first }
+
     suspend fun getSongUrl(id: Long): String? =
         api.songUrl(id).data.firstOrNull { !it.url.isNullOrBlank() }?.url
 

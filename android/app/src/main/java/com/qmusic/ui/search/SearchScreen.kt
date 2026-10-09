@@ -135,6 +135,7 @@ fun SearchScreen(
 private fun SearchHome(viewModel: SearchViewModel) {
     val colors = LocalQMusicColors.current
     val history by viewModel.history.collectAsState()
+    val hotKeywords by viewModel.hotKeywords.collectAsState()
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
         // 搜索历史（真实持久化，可删除/清空）
@@ -197,7 +198,7 @@ private fun SearchHome(viewModel: SearchViewModel) {
         item {
             SectionTitle(title = stringResource(R.string.hot_search))
         }
-        itemsIndexed(viewModel.hotKeywords) { index, keyword ->
+        itemsIndexed(hotKeywords) { index, keyword ->
             Row(
                 modifier = Modifier.fillMaxWidth()
                     .clickable { viewModel.submitSearch(keyword) }

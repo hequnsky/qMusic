@@ -30,21 +30,25 @@ class SearchViewModel(
     private val _history = MutableStateFlow<List<String>>(emptyList())
     val history: StateFlow<List<String>> = _history.asStateFlow()
 
-    private var searchJob: Job? = null
+    private val _hotKeywords = MutableStateFlow<List<String>>(emptyList())
+    val hotKeywords: StateFlow<List<String>> = _hotKeywords.asStateFlow()
 
-    val hotKeywords = listOf(
-        "海阔天空",
-        "夜空中最亮的星",
-        "平凡之路",
-        "起风了",
-        "成都",
-        "光辉岁月",
-        "光年之外",
-        "晴天",
-    )
+    private var searchJob: Job? = null
 
     init {
         _history.value = SearchHistoryStore.get(getApplication())
+        loadHotKeywords()
+    }
+
+    /** 加载真实热门搜索词（/search/hot） */
+    fun loadHotKeywords() {
+        viewModelScope.launch {
+            _hotKeywords.value = try {
+                repository.getHotKeywords(10)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
     }
 
     fun onQueryChange(value: String) {

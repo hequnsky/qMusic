@@ -127,6 +127,16 @@ data class CommentUser(
     val avatarUrl: String? = null,
 )
 
+/** 热门搜索响应（/search/hot） */
+@Serializable
+data class SearchHotResponse(val result: SearchHotResult = SearchHotResult())
+
+@Serializable
+data class SearchHotResult(val hots: List<SearchHotItem> = emptyList())
+
+@Serializable
+data class SearchHotItem(val first: String = "")
+
 /** 歌单详情响应 */
 @Serializable
 data class PlaylistDetailResponse(val playlist: PlaylistDetail = PlaylistDetail())
