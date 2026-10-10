@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -188,7 +188,7 @@ fun LocalMusicScreen(
                             )
                         }
                     }
-                    items(localSongs, key = { it.id }) { song ->
+                    itemsIndexed(localSongs, key = { index, song -> "$index-${song.id}" }) { _, song ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

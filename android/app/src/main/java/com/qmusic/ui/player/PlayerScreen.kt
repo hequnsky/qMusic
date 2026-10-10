@@ -2,6 +2,7 @@ package com.qmusic.ui.player
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -115,6 +116,16 @@ fun PlayerScreen(
     var timerJob by remember { mutableStateOf<Job?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // 系统返回键：优先关闭播放页内子页面，再关闭整个播放页（而不是直接退出到桌面）
+    BackHandler {
+        when {
+            showLyrics -> showLyrics = false
+            showQueue -> showQueue = false
+            showMore -> showMore = false
+            else -> onClose()
+        }
+    }
 
     if (showLyrics) {
         LyricView(state = state, onBack = { showLyrics = false })
@@ -234,7 +245,7 @@ fun PlayerScreen(
 
             // 进度与控制
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 18.dp, bottom = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp).padding(top = 10.dp, bottom = 4.dp),
             ) {
                 val duration = state.durationMs.coerceAtLeast(1L)
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -243,7 +254,7 @@ fun PlayerScreen(
                         value = state.positionMs.toFloat().coerceIn(0f, duration.toFloat()),
                         onValueChange = { viewModel.seekTo(it.toLong()) },
                         valueRange = 0f..duration.toFloat(),
-                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                        modifier = Modifier.weight(1f).height(26.dp).padding(horizontal = 6.dp),
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
                             activeTrackColor = GradientStart,
@@ -254,7 +265,7 @@ fun PlayerScreen(
                 }
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 0.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -501,7 +512,7 @@ private fun QueuePanel(
                 }
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
-                    itemsIndexed(queue, key = { _, song -> song.id }) { index, song ->
+                    itemsIndexed(queue, key = { index, song -> "$index-${song.id}" }) { index, song ->
                         val isCurrent = song.id == currentSongId
                         Row(
                             modifier = Modifier

@@ -272,7 +272,7 @@ private fun SearchResultList(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                 )
             }
-            itemsIndexed(results, key = { _, song -> song.id }) { index, song ->
+            itemsIndexed(results, key = { index, song -> "$index-${song.id}" }) { index, song ->
                 SongRow(
                     song = song,
                     onClick = { onPlaySong(results, index) },
@@ -313,7 +313,7 @@ private fun SearchSuggestRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(suggestions, key = { it.id }) { song ->
+            itemsIndexed(suggestions, key = { index, song -> "$index-${song.id}" }) { _, song ->
                 Column(
                     modifier = Modifier
                         .width(124.dp)

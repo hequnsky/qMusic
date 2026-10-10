@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -178,12 +179,12 @@ fun DiscoverScreen(
                 }
             }
             else -> {
-                items(state.songs, key = { it.id }) { song ->
+                itemsIndexed(state.songs, key = { index, song -> "$index-${song.id}" }) { index, song ->
                     SongRow(
                         song = song,
                         onClick = {
-                            val index = state.songs.indexOfFirst { it.id == song.id }
-                            if (index >= 0) onPlayAll(state.songs, index)
+                            val i = state.songs.indexOfFirst { it.id == song.id }
+                            if (i >= 0) onPlayAll(state.songs, i)
                         },
                     )
                 }

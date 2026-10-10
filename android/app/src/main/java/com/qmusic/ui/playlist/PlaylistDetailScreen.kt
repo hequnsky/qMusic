@@ -134,7 +134,7 @@ fun PlaylistDetailScreen(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             )
                         }
-                        itemsIndexed(detail.tracks, key = { _, song -> song.id }) { index, song ->
+                        itemsIndexed(detail.tracks, key = { index, song -> "$index-${song.id}" }) { index, song ->
                             SongRow(
                                 song = song,
                                 onClick = { onPlayAll(detail.tracks, index) },

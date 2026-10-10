@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -116,7 +116,7 @@ fun CommentScreen(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    items(comments.orEmpty(), key = { it.content.hashCode().toLong() }) { comment ->
+                    itemsIndexed(comments.orEmpty(), key = { index, comment -> "$index-${comment.content.hashCode()}" }) { _, comment ->
                         Row(Modifier.fillMaxWidth()) {
                             if (!comment.user.avatarUrl.isNullOrBlank()) {
                                 AsyncImage(

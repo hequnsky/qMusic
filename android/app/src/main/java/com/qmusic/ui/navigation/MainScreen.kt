@@ -178,16 +178,6 @@ fun MainScreen(
         )
     }
 
-    // 歌曲评论页
-    commentSong?.let { song ->
-        CommentScreen(
-            songId = song.id,
-            songName = song.name,
-            repository = app.repository,
-            onBack = { commentSong = null },
-        )
-    }
-
     // 我的下载
     if (downloadOpen) {
         DownloadScreen(
@@ -206,6 +196,16 @@ fun MainScreen(
             repository = app.repository,
             onClose = { playerOpen = false },
             onOpenComment = { song -> commentSong = song },
+        )
+    }
+
+    // 歌曲评论页（必须覆盖在播放页之上，否则点击评论没有反应）
+    commentSong?.let { song ->
+        CommentScreen(
+            songId = song.id,
+            songName = song.name,
+            repository = app.repository,
+            onBack = { commentSong = null },
         )
     }
 }
