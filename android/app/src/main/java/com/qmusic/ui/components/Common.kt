@@ -216,14 +216,14 @@ fun MiniPlayerBar(
             .background(Dark.copy(alpha = 0.94f))
             .clickable(onClick = onClick),
     ) {
-        // 底部进度条
+        // 底部进度条（两端留白，不贴边）
         val progress = if (state.durationMs > 0) {
             (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f)
         } else {
             0f
         }
         Box(
-            Modifier.fillMaxWidth().height(2.dp).align(Alignment.BottomCenter)
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(2.dp).align(Alignment.BottomCenter)
                 .background(Color.White.copy(alpha = 0.15f)),
         ) {
             Box(

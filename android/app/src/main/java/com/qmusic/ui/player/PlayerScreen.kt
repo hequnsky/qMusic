@@ -245,23 +245,23 @@ fun PlayerScreen(
 
             // 进度与控制
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp).padding(top = 10.dp, bottom = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 56.dp).padding(top = 10.dp, bottom = 4.dp),
             ) {
                 val duration = state.durationMs.coerceAtLeast(1L)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(formatDuration(state.positionMs), fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+                    Text(formatDuration(state.positionMs), fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
                     Slider(
                         value = state.positionMs.toFloat().coerceIn(0f, duration.toFloat()),
                         onValueChange = { viewModel.seekTo(it.toLong()) },
                         valueRange = 0f..duration.toFloat(),
-                        modifier = Modifier.weight(1f).height(26.dp).padding(horizontal = 6.dp),
+                        modifier = Modifier.weight(1f).height(20.dp).padding(horizontal = 4.dp),
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
                             activeTrackColor = GradientStart,
                             inactiveTrackColor = Color.White.copy(alpha = 0.15f),
                         ),
                     )
-                    Text(formatDuration(duration), fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+                    Text(formatDuration(duration), fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
                 }
 
                 Row(
