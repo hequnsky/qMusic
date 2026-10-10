@@ -156,7 +156,7 @@ fun CategoryMusicScreen(
                     }
                 } else {
                     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
-                        items(list, key = { it.id }) { playlist ->
+                        itemsIndexed(list, key = { index, item -> "$index-${item.id}" }) { index, playlist ->
                             Row(
                                 modifier = Modifier.fillMaxWidth()
                                     .clickable { onOpenPlaylist(playlist.id) }

@@ -216,6 +216,9 @@ class PlayerController(
                     if (playbackState == Player.STATE_READY) {
                         val d = exo.duration
                         if (d > 0) _uiState.update { it.copy(durationMs = d) }
+                    } else if (playbackState == Player.STATE_ENDED) {
+                        // 单曲播放完毕，自动继续播放队列中的下一首
+                        next()
                     }
                 }
 

@@ -125,7 +125,7 @@ fun DiscoverScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(toplists.orEmpty().take(8), key = { it.id }) { toplist ->
+                    itemsIndexed(toplists.orEmpty().take(8), key = { index, item -> "$index-${item.id}" }) { index, toplist ->
                         ToplistCard(toplist = toplist, onClick = { onOpenPlaylist(toplist.id) })
                     }
                 }
@@ -138,7 +138,7 @@ fun DiscoverScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(state.playlists, key = { it.id }) { playlist ->
+                itemsIndexed(state.playlists, key = { index, item -> "$index-${item.id}" }) { index, playlist ->
                     PlaylistCard(playlist = playlist, onClick = { onOpenPlaylist(playlist.id) })
                 }
             }

@@ -233,28 +233,21 @@ fun PlayerScreen(
                         color = if (state.isFavorite) Accent else Color.White.copy(alpha = 0.6f),
                         modifier = Modifier.clickable { viewModel.toggleFavorite() },
                     )
-                    Spacer(Modifier.width(28.dp))
-                    Text(
-                        "💬 评论",
-                        fontSize = 13.sp,
-                        color = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.clickable { state.song?.let(onOpenComment) },
-                    )
                 }
             }
 
             // 进度与控制
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 56.dp).padding(top = 10.dp, bottom = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(top = 10.dp, bottom = 4.dp),
             ) {
                 val duration = state.durationMs.coerceAtLeast(1L)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(formatDuration(state.positionMs), fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
+                    Text(formatDuration(state.positionMs), fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
                     Slider(
                         value = state.positionMs.toFloat().coerceIn(0f, duration.toFloat()),
                         onValueChange = { viewModel.seekTo(it.toLong()) },
                         valueRange = 0f..duration.toFloat(),
-                        modifier = Modifier.weight(1f).height(20.dp).padding(horizontal = 4.dp),
+                        modifier = Modifier.weight(1f).height(24.dp).padding(horizontal = 4.dp),
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
                             activeTrackColor = GradientStart,

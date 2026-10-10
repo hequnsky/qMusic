@@ -112,36 +112,37 @@ fun PlaylistDetailScreen(
 
             state.detail != null -> {
                 val detail = state.detail!!
-                PullToRefreshBox(
-                    isRefreshing = state.loading,
-                    onRefresh = { viewModel.refresh() },
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 24.dp),
+                // 头部（封面/歌单信息/播放全部）固定不动，只有歌曲列表随手指滚动
+                Column(Modifier.fillMaxSize()) {
+                    PlaylistHeader(detail = detail)
+                    PlayAllButton(
+                        onClick = { onPlayAll(detail.tracks, 0) },
+                        enabled = detail.tracks.isNotEmpty(),
+                    )
+                    PullToRefreshBox(
+                        isRefreshing = state.loading,
+                        onRefresh = { viewModel.refresh() },
+                        modifier = Modifier.weight(1f),
                     ) {
-                        item { PlaylistHeader(detail = detail) }
-                        item {
-                            PlayAllButton(
-                                onClick = { onPlayAll(detail.tracks, 0) },
-                                enabled = detail.tracks.isNotEmpty(),
-                            )
-                        }
-                        item {
-                            Text(
-                                "${stringResource(R.string.song_list)} · 共 ${detail.tracks.size} ${stringResource(R.string.songs)}",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.textSecondary,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                            )
-                        }
-                        itemsIndexed(detail.tracks, key = { index, song -> "$index-${song.id}" }) { index, song ->
-                            SongRow(
-                                song = song,
-                                onClick = { onPlayAll(detail.tracks, index) },
-                            )
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 24.dp),
+                        ) {
+                            item {
+                                Text(
+                                    "${stringResource(R.string.song_list)} · 共 ${detail.tracks.size} ${stringResource(R.string.songs)}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                )
+                            }
+                            itemsIndexed(detail.tracks, key = { index, song -> "$index-${song.id}" }) { index, song ->
+                                SongRow(
+                                    song = song,
+                                    onClick = { onPlayAll(detail.tracks, index) },
+                                )
+                            }
                         }
                     }
                 }

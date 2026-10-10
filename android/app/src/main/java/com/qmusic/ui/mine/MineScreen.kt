@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -282,7 +282,7 @@ fun MineScreen(
         if (favorites.isEmpty()) {
             item { EmptyText(stringResource(R.string.empty_favorite)) }
         } else {
-            items(favorites, key = { it.songId }) { favorite ->
+            itemsIndexed(favorites, key = { index, item -> "$index-${item.songId}" }) { index, favorite ->
                 SongRow(song = favorite.toSong(), onClick = { onPlaySong(favorite.toSong()) })
             }
         }
@@ -291,7 +291,7 @@ fun MineScreen(
         if (history.isEmpty()) {
             item { EmptyText(stringResource(R.string.empty_history)) }
         } else {
-            items(history, key = { it.songId }) { item ->
+            itemsIndexed(history, key = { index, item -> "$index-${item.songId}" }) { index, item ->
                 SongRow(song = item.toSong(), onClick = { onPlaySong(item.toSong()) })
             }
         }

@@ -92,7 +92,9 @@ fun LocalMusicScreen(
                 songs = loadDemoSongs(context)
                 usingDemo = true
             } else {
-                songs = scanned
+                // 真实歌曲 + 内置演示歌曲（8/10/12 秒，便于快速体验播放与自动连播）
+                songs = scanned + loadDemoSongs(context)
+                usingDemo = true
             }
         }
     }
