@@ -24,6 +24,9 @@ class SearchViewModel(
     private val _results = MutableStateFlow<List<Song>>(emptyList())
     val results: StateFlow<List<Song>> = _results.asStateFlow()
 
+    private val _suggestions = MutableStateFlow<List<Song>>(emptyList())
+    val suggestions: StateFlow<List<Song>> = _suggestions.asStateFlow()
+
     private val _searching = MutableStateFlow(false)
     val searching: StateFlow<Boolean> = _searching.asStateFlow()
 
@@ -56,12 +59,18 @@ class SearchViewModel(
         searchJob?.cancel()
         if (value.isBlank()) {
             _results.value = emptyList()
+            _suggestions.value = emptyList()
             _searching.value = false
             return
         }
         searchJob = viewModelScope.launch {
             delay(300) // 防抖
             _searching.value = true
+            _suggestions.value = try {
+                repository.getSearchSuggest(value)
+            } catch (e: Exception) {
+                emptyList()
+            }
             _results.value = try {
                 repository.search(value, 30)
             } catch (e: Exception) {

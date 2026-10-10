@@ -109,4 +109,8 @@
     <string name="login_failed">二维码加载失败，请检查网络</string>
     <string name="login_scan_hint">仅用于展示公开用户信息，不会访问您的私密数据</string>
     <string name="logout">退出登录</string>
+
+    <!-- 排行榜与搜索建议 -->
+    <string name="toplist">排行榜</string>
+    <string name="search_suggest">搜索建议</string>
 </resources>

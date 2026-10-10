@@ -9,7 +9,9 @@ import com.qmusic.data.model.QrCreateResponse
 import com.qmusic.data.model.QrKeyResponse
 import com.qmusic.data.model.SearchHotResponse
 import com.qmusic.data.model.SearchResponse
+import com.qmusic.data.model.SearchSuggestResponse
 import com.qmusic.data.model.SongUrlResponse
+import com.qmusic.data.model.ToplistResponse
 import com.qmusic.data.model.TopPlaylistResponse
 import com.qmusic.data.model.TopSongResponse
 import com.qmusic.data.model.UserAccountResponse
@@ -33,6 +35,14 @@ interface MusicApiService {
     /** 热门搜索词 */
     @GET("search/hot")
     suspend fun searchHot(): SearchHotResponse
+
+    /** 搜索建议 */
+    @GET("search/suggest")
+    suspend fun searchSuggest(@Query("keywords") keywords: String): SearchSuggestResponse
+
+    /** 排行榜列表 */
+    @GET("toplist")
+    suspend fun toplist(): ToplistResponse
 
     // ---------- 网易云账号登录 ----------
 

@@ -109,4 +109,8 @@
     <string name="login_failed">Failed to load QR code. Check your network.</string>
     <string name="login_scan_hint">Used only to show public profile info. Your private data stays safe.</string>
     <string name="logout">Sign Out</string>
+
+    <!-- Top charts & search suggestions -->
+    <string name="toplist">Top Charts</string>
+    <string name="search_suggest">Suggestions</string>
 </resources>

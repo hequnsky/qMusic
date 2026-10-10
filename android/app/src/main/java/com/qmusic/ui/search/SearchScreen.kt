@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +53,7 @@ import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Song
 import com.qmusic.ui.components.SectionTitle
+import com.qmusic.ui.components.SongCover
 import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
@@ -73,6 +76,7 @@ fun SearchScreen(
     val query by viewModel.query.collectAsState()
     val results by viewModel.results.collectAsState()
     val searching by viewModel.searching.collectAsState()
+    val suggestions by viewModel.suggestions.collectAsState()
 
     Column(Modifier.fillMaxSize().background(colors.background)) {
         // 搜索框
@@ -122,11 +126,19 @@ fun SearchScreen(
         if (query.isBlank()) {
             SearchHome(viewModel = viewModel)
         } else {
-            SearchResultList(
-                results = results,
-                searching = searching,
-                onPlaySong = onPlaySong,
-            )
+            Column(Modifier.fillMaxSize()) {
+                SearchSuggestRow(
+                    suggestions = suggestions,
+                    onPlaySong = { song ->
+                        onPlaySong(listOf(song), 0)
+                    },
+                )
+                SearchResultList(
+                    results = results,
+                    searching = searching,
+                    onPlaySong = onPlaySong,
+                )
+            }
         }
     }
 }
@@ -274,6 +286,58 @@ private fun SearchResultList(
                         color = colors.textTertiary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(top = 60.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 搜索建议横滑卡片（/search/suggest） */
+@Composable
+private fun SearchSuggestRow(
+    suggestions: List<Song>,
+    onPlaySong: (Song) -> Unit,
+) {
+    if (suggestions.isEmpty()) return
+    val colors = LocalQMusicColors.current
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            stringResource(R.string.search_suggest),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(suggestions, key = { it.id }) { song ->
+                Column(
+                    modifier = Modifier
+                        .width(124.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.card)
+                        .clickable { onPlaySong(song) }
+                        .padding(8.dp),
+                ) {
+                    SongCover(url = song.coverUrl, size = 108, corner = 8)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        song.name,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        song.artistName,
+                        fontSize = 10.sp,
+                        color = colors.textTertiary,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                 }
             }

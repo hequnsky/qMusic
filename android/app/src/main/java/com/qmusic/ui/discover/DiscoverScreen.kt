@@ -32,8 +32,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +57,7 @@ import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.Song
+import com.qmusic.data.model.Toplist
 import com.qmusic.ui.category.CategorySpec
 import com.qmusic.ui.category.categorySpecOf
 import com.qmusic.ui.components.PlaylistCard
@@ -71,6 +76,7 @@ fun DiscoverScreen(
     onOpenPlaylist: (Long) -> Unit,
     onOpenMorePlaylists: () -> Unit,
     onOpenCategory: (CategorySpec) -> Unit = {},
+    onOpenToplists: () -> Unit = {},
 ) {
     val viewModel: DiscoverViewModel = viewModel(
         factory = viewModelFactory {
@@ -79,6 +85,14 @@ fun DiscoverScreen(
     )
     val state by viewModel.uiState.collectAsState()
     val colors = LocalQMusicColors.current
+    var toplists by remember { mutableStateOf<List<Toplist>?>(null) }
+    LaunchedEffect(Unit) {
+        toplists = try {
+            repository.getToplists()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(colors.background),
@@ -96,6 +110,26 @@ fun DiscoverScreen(
         }
 
         item { ChipsRow(onCategoryClick = { name -> onOpenCategory(categorySpecOf(name)) }) }
+
+        item { SectionTitle(title = stringResource(R.string.toplist), onMore = onOpenToplists) }
+        if (toplists.orEmpty().isEmpty()) {
+            item {
+                Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = GradientStart, modifier = Modifier.size(22.dp))
+                }
+            }
+        } else {
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(toplists.orEmpty().take(8), key = { it.id }) { toplist ->
+                        ToplistCard(toplist = toplist, onClick = { onOpenPlaylist(toplist.id) })
+                    }
+                }
+            }
+        }
 
         item { SectionTitle(title = stringResource(R.string.hot_playlist), onMore = onOpenMorePlaylists) }
         item {
@@ -310,5 +344,46 @@ private fun ChipsRow(onCategoryClick: (String) -> Unit) {
                     .padding(horizontal = 14.dp, vertical = 7.dp),
             )
         }
+    }
+}
+
+/** 排行榜卡片 */
+@Composable
+private fun ToplistCard(toplist: Toplist, onClick: () -> Unit) {
+    val colors = LocalQMusicColors.current
+    Column(
+        modifier = Modifier.width(150.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick),
+    ) {
+        Box {
+            AsyncImage(
+                model = toplist.coverImgUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(width = 150.dp, height = 150.dp)
+                    .clip(RoundedCornerShape(14.dp)),
+            )
+            Text(
+                toplist.updateFrequency,
+                fontSize = 9.sp,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 8.dp, bottom = 6.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .padding(horizontal = 5.dp, vertical = 2.dp),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            toplist.name,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

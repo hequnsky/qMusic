@@ -182,6 +182,53 @@ data class UserDetailProfile(
     val eventCount: Long = 0,
 )
 
+/** 搜索建议响应（/search/suggest） */
+@Serializable
+data class SearchSuggestResponse(val result: SearchSuggestResult = SearchSuggestResult())
+
+@Serializable
+data class SearchSuggestResult(val songs: List<SuggestSong> = emptyList())
+
+@Serializable
+data class SuggestSong(
+    val id: Long = 0,
+    val name: String = "",
+    val artists: List<SuggestArtist> = emptyList(),
+    val album: SuggestAlbum? = null,
+    val duration: Long = 0,
+) {
+    fun toSong(): Song = Song(
+        id = id,
+        name = name,
+        artists = artists.map { Artist(id = it.id, name = it.name) },
+        album = album?.let { Album(name = it.name) },
+        duration = duration,
+    )
+}
+
+@Serializable
+data class SuggestArtist(
+    val id: Long = 0,
+    val name: String = "",
+    val img1v1Url: String? = null,
+)
+
+@Serializable
+data class SuggestAlbum(val name: String = "")
+
+/** 排行榜列表响应（/toplist） */
+@Serializable
+data class ToplistResponse(val list: List<Toplist> = emptyList())
+
+@Serializable
+data class Toplist(
+    val id: Long = 0,
+    val name: String = "",
+    val coverImgUrl: String? = null,
+    val updateFrequency: String = "",
+    val description: String = "",
+)
+
 /** 歌单详情响应 */
 @Serializable
 data class PlaylistDetailResponse(val playlist: PlaylistDetail = PlaylistDetail())

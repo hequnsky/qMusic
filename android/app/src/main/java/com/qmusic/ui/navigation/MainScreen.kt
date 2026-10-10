@@ -31,6 +31,7 @@ import com.qmusic.ui.playlist.HotPlaylistScreen
 import com.qmusic.ui.playlist.LocalMusicScreen
 import com.qmusic.ui.playlist.PlaylistDetailScreen
 import com.qmusic.ui.search.SearchScreen
+import com.qmusic.ui.toplist.ToplistScreen
 
 /** 主界面：底部导航 + 页面切换 + 迷你播放条 + 全屏播放页 */
 @Composable
@@ -46,6 +47,7 @@ fun MainScreen(
     var playerOpen by rememberSaveable { mutableStateOf(false) }
     var playlistDetailId by rememberSaveable { mutableStateOf<Long?>(null) }
     var hotPlaylistOpen by rememberSaveable { mutableStateOf(false) }
+    var toplistOpen by rememberSaveable { mutableStateOf(false) }
     var localMusicOpen by rememberSaveable { mutableStateOf(false) }
     var downloadOpen by rememberSaveable { mutableStateOf(false) }
     var category by remember { mutableStateOf<CategorySpec?>(null) }
@@ -86,6 +88,7 @@ fun MainScreen(
                     onOpenPlaylist = { playlistDetailId = it },
                     onOpenMorePlaylists = { hotPlaylistOpen = true },
                     onOpenCategory = { category = it },
+                    onOpenToplists = { toplistOpen = true },
                 )
                 1 -> MineScreen(
                     repository = app.repository,
@@ -128,6 +131,18 @@ fun MainScreen(
             onBack = { hotPlaylistOpen = false },
             onOpenPlaylist = { id ->
                 hotPlaylistOpen = false
+                playlistDetailId = id
+            },
+        )
+    }
+
+    // 全部排行榜（点击榜单后进入歌单详情）
+    if (toplistOpen) {
+        ToplistScreen(
+            repository = app.repository,
+            onBack = { toplistOpen = false },
+            onOpenPlaylist = { id ->
+                toplistOpen = false
                 playlistDetailId = id
             },
         )

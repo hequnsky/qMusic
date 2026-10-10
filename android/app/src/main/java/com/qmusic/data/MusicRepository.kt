@@ -5,6 +5,7 @@ import com.qmusic.data.local.HistoryDao
 import com.qmusic.data.local.entity.Favorite
 import com.qmusic.data.local.entity.History
 import com.qmusic.data.model.Comment
+import com.qmusic.data.model.Toplist
 import com.qmusic.data.model.UserDetailProfile
 import com.qmusic.data.model.UserProfile
 import com.qmusic.data.model.LyricLine
@@ -29,6 +30,11 @@ class MusicRepository(
 
     suspend fun getHotKeywords(limit: Int = 10): List<String> =
         api.searchHot().result.hots.take(limit).map { it.first }
+
+    suspend fun getSearchSuggest(keywords: String, limit: Int = 6): List<Song> =
+        api.searchSuggest(keywords).result.songs.take(limit).map { it.toSong() }
+
+    suspend fun getToplists(): List<Toplist> = api.toplist().list
 
     // ---------- 网易云账号登录 ----------
 
