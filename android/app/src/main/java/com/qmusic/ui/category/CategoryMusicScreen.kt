@@ -1,5 +1,6 @@
 package com.qmusic.ui.category
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -89,6 +90,8 @@ fun CategoryMusicScreen(
     onPlaySongs: (List<Song>, Int) -> Unit,
     onOpenPlaylist: (Long) -> Unit,
 ) {
+    // 系统返回键：先关闭分类音乐页
+    BackHandler { onBack() }
     val colors = LocalQMusicColors.current
     var songs by remember { mutableStateOf<List<Song>?>(null) }
     var playlists by remember { mutableStateOf<List<Playlist>?>(null) }

@@ -1,5 +1,6 @@
 package com.qmusic.ui.playlist
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,6 +68,8 @@ fun PlaylistDetailScreen(
     onBack: () -> Unit,
     onPlayAll: (List<Song>, Int) -> Unit,
 ) {
+    // 系统返回键：先关闭歌单详情页
+    BackHandler { onBack() }
     val viewModel: PlaylistDetailViewModel = viewModel(
         key = "playlist_$playlistId",
         factory = viewModelFactory {

@@ -1,5 +1,6 @@
 package com.qmusic.ui.playlist
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +59,8 @@ fun HotPlaylistScreen(
     onBack: () -> Unit,
     onOpenPlaylist: (Long) -> Unit,
 ) {
+    // 系统返回键：先关闭全部热门歌单页
+    BackHandler { onBack() }
     val colors = LocalQMusicColors.current
     var playlists by remember { mutableStateOf<List<Playlist>?>(null) }
     var failed by remember { mutableStateOf(false) }

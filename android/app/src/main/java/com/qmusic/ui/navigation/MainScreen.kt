@@ -1,5 +1,6 @@
 package com.qmusic.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,6 +54,11 @@ fun MainScreen(
     var category by remember { mutableStateOf<CategorySpec?>(null) }
     var commentSong by remember { mutableStateOf<Song?>(null) }
     val playerState by playerController.uiState.collectAsState()
+
+    // 系统返回键：非发现页时先回到发现页。
+    // 覆盖层（播放页/评论/歌单/搜索建议等）各自的 BackHandler 优先级更高，会先被处理；
+    // 这里是兜底，保证任何页面按返回最终都回到发现主页（主页再按返回才退出 App）。
+    BackHandler(enabled = selectedTab != 0) { selectedTab = 0 }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

@@ -1,5 +1,6 @@
 package com.qmusic.ui.comment
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,6 +57,8 @@ fun CommentScreen(
     repository: MusicRepository,
     onBack: () -> Unit,
 ) {
+    // 系统返回键：先关闭评论页，返回播放页/上一页
+    BackHandler { onBack() }
     val colors = LocalQMusicColors.current
     var comments by remember { mutableStateOf<List<Comment>?>(null) }
     var failed by remember { mutableStateOf(false) }

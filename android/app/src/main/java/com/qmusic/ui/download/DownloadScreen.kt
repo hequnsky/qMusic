@@ -1,5 +1,6 @@
 package com.qmusic.ui.download
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,8 @@ fun DownloadScreen(
     onBack: () -> Unit,
     onPlaySongs: (List<Song>, Int) -> Unit,
 ) {
+    // 系统返回键：先关闭我的下载页
+    BackHandler { onBack() }
     val colors = LocalQMusicColors.current
     val context = LocalContext.current
     var songs by remember { mutableStateOf(DownloadManager.getDownloadedSongs(context)) }

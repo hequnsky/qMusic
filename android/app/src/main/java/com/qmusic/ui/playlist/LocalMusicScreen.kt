@@ -1,5 +1,6 @@
 package com.qmusic.ui.playlist
 
+import androidx.activity.compose.BackHandler
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -66,6 +67,8 @@ fun LocalMusicScreen(
     onBack: () -> Unit,
     onPlaySongs: (List<Song>, Int) -> Unit,
 ) {
+    // 系统返回键：先关闭本地音乐页
+    BackHandler { onBack() }
     val colors = LocalQMusicColors.current
     val context = LocalContext.current
     var granted by remember { mutableStateOf(hasAudioPermission(context)) }
