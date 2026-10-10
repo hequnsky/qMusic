@@ -195,9 +195,16 @@ fun PlayerScreen(
                 }
             }
 
-            // 圆盘
+            // 圆盘（仅作视觉展示，点击无任何反应，避免误触切换播放状态）
             Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 RotatingDisc(coverUrl = state.song?.coverUrl, isPlaying = state.isPlaying)
@@ -257,8 +264,11 @@ fun PlayerScreen(
                     Text(formatDuration(duration), fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
                 }
 
+                // 进度条与下方播放控制按钮保持足够呼吸感（避免贴在一起、误触）
+                Spacer(Modifier.height(28.dp))
+
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 0.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -321,7 +331,7 @@ fun PlayerScreen(
                             Toast.makeText(context, R.string.download_started, Toast.LENGTH_SHORT).show()
                             scope.launch {
                                 val url = try {
-                                    repository.getSongUrl(song.id)
+                                    repository.getSongUrl(song)
                                 } catch (e: Exception) {
                                     null
                                 }

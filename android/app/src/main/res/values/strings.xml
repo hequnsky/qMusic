@@ -34,6 +34,12 @@
     <string name="play_pause">播放/暂停</string>
     <string name="not_playing">未在播放</string>
 
+    <!-- 桌面小组件 -->
+    <string name="widget_cover_desc">专辑封面</string>
+    <string name="widget_idle_title">未在播放</string>
+    <string name="widget_play_pause_desc">播放/暂停</string>
+    <string name="widget_added">小组件已添加，控制音乐从这里开始</string>
+
     <!-- 我的页 -->
     <string name="liked_songs">我喜欢的</string>
     <string name="recent_plays">最近播放</string>
@@ -49,6 +55,7 @@
 
     <!-- 搜索页 -->
     <string name="search">搜索</string>
+    <string name="music_source">音源</string>
     <string name="search_hint">搜索歌曲 / 歌手</string>
     <string name="search_history">搜索历史</string>
     <string name="hot_search">热搜榜</string>

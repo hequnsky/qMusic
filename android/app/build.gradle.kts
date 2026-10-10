@@ -16,6 +16,21 @@ val qmusicLocalProps = Properties().apply {
 fun prop(key: String): String? =
     qmusicLocalProps.getProperty(key) ?: System.getenv(key.replace(".", "_").uppercase())
 
+// ------------------------------------------------------------------
+// 版本号与打包命名（android/version.properties）
+//   - versionName 每次打包 +0.01
+//   - versionCode 每次打包 +1
+//   - APK 文件名 = <appName>-<versionName>-<buildType>.apk
+// 由 android/scripts/bump-version.js 自动维护，也可手动改。
+// ------------------------------------------------------------------
+val versionFile = rootProject.file("version.properties")
+val versionProps = Properties().apply {
+    if (versionFile.exists()) versionFile.inputStream().use { load(it) }
+}
+val appDisplayName: String = versionProps.getProperty("appName") ?: "qMusic"
+val appVersionName: String = versionProps.getProperty("versionName") ?: "1.0.0"
+val appVersionCode: Int = (versionProps.getProperty("versionCode") ?: "1").toInt()
+
 android {
     namespace = "com.qmusic"
     compileSdk = 35
@@ -24,9 +39,11 @@ android {
         applicationId = "com.qmusic"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // 备注：BuildConfig 里也带上，便于运行期展示版本
+        buildConfigField("String", "APP_DISPLAY_NAME", "\"$appDisplayName\"")
     }
 
     signingConfigs {
@@ -55,6 +72,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     lint {
         // 学习项目：release 构建跳过 Lint 致命检查，保证可复现构建
@@ -63,6 +81,22 @@ android {
     }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    }
+}
+
+// ------------------------------------------------------------------
+// APK 产物命名：qMusic-1.01-release.apk
+// （同时把 debug 包命名为 qMusic-1.01-debug.apk，方便区分）
+// ------------------------------------------------------------------
+androidComponents {
+    onVariants { variant ->
+        val buildType = variant.buildType ?: "release"
+        variant.outputs.forEach { output ->
+            val fileName = "$appDisplayName-$appVersionName-$buildType.apk"
+            (output as? com.android.build.api.variant.impl.VariantOutputImpl)
+                ?.outputFileName
+                ?.set(fileName)
+        }
     }
 }
 

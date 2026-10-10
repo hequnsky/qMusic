@@ -1,80 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  桌面小组件布局（2x2）：
+  上排：封面 + 歌名/歌手；下排：上一首 / 播放暂停 / 下一首（居中）。
+  高度约 124dp，适配 2 个单元格（>=110dp），不会出现内容被裁切的问题。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:background="@drawable/widget_bg"
-    android:padding="12dp"
-    android:gravity="center_vertical">
-
-    <ImageView
-        android:id="@+id/widget_cover"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:scaleType="centerCrop"
-        android:src="@drawable/ic_notification"
-        android:contentDescription="封面" />
+    android:gravity="center"
+    android:padding="12dp">
 
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginStart="10dp"
-        android:layout_marginEnd="6dp"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/widget_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#FFFFFFFF"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text="未在播放" />
-
-        <TextView
-            android:id="@+id/widget_artist"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textColor="#B3FFFFFF"
-            android:textSize="11sp"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text="qMusic" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
+        <ImageView
+            android:id="@+id/widget_cover"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_notification"
+            android:contentDescription="@string/widget_cover_desc" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="@string/widget_idle_title" />
+
+            <TextView
+                android:id="@+id/widget_artist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="#B3FFFFFF"
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="@string/app_name" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
         <ImageButton
             android:id="@+id/widget_prev"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside"
+            android:padding="8dp"
             android:src="@drawable/ic_prev_widget"
-            android:contentDescription="上一首" />
+            android:contentDescription="@string/prev" />
 
         <ImageButton
             android:id="@+id/widget_play_pause"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside"
+            android:padding="9dp"
             android:src="@drawable/ic_play_widget"
-            android:contentDescription="播放/暂停" />
+            android:contentDescription="@string/widget_play_pause_desc" />
 
         <ImageButton
             android:id="@+id/widget_next"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/widget_btn_bg"
+            android:scaleType="centerInside"
+            android:padding="8dp"
             android:src="@drawable/ic_next_widget"
-            android:contentDescription="下一首" />
+            android:contentDescription="@string/next" />
     </LinearLayout>
 </LinearLayout>

@@ -10,6 +10,9 @@ import android.net.Uri
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import android.support.v4.media.MediaMetadataCompat
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -65,7 +68,86 @@ class PlayerController(
     private var player: ExoPlayer? = null
     private var serviceRef: WeakReference<PlayerService>? = null
     private var positionJob: Job? = null
+
+    /**
+     * 通知栏 / 锁屏媒体控制缓存的封面。
+     * 必须与 [artworkSongId] 成对使用：只有两者匹配时才认为缓存有效，
+     * 否则切歌后会继续显示上一首的封面（历史 Bug）。
+     */
     private var lastArtworkBitmap: Bitmap? = null
+    private var artworkSongId: Long? = null
+    private var mediaSession: MediaSessionCompat? = null
+
+    init {
+        setupMediaSession()
+    }
+
+    /** 注册系统媒体会话（状态栏媒体控制：显示歌曲、封面、上一首/播放/下一首） */
+    private fun setupMediaSession() {
+        val session = MediaSessionCompat(context, "qmusic_player")
+        session.setCallback(object : MediaSessionCompat.Callback() {
+            override fun onPlay() {
+                player?.play()
+                updateMediaSessionState()
+                updateNotification()
+                updateWidget()
+            }
+
+            override fun onPause() {
+                player?.pause()
+                updateMediaSessionState()
+                updateNotification()
+                updateWidget()
+            }
+
+            override fun onSkipToNext() = next()
+            override fun onSkipToPrevious() = prev()
+            override fun onSeekTo(pos: Long) = seekTo(pos)
+        })
+        mediaSession = session
+    }
+
+    /** 同步播放状态与媒体元数据到系统媒体会话 */
+    private fun updateMediaSessionState() {
+        val session = mediaSession ?: return
+        val state = _uiState.value
+        session.setPlaybackState(
+            PlaybackStateCompat.Builder()
+                .setActions(
+                    PlaybackStateCompat.ACTION_PLAY or
+                        PlaybackStateCompat.ACTION_PAUSE or
+                        PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                        PlaybackStateCompat.ACTION_SEEK_TO,
+                )
+                .setState(
+                    if (state.isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                    state.positionMs,
+                    1f,
+                )
+                .build(),
+        )
+        // 同步媒体元数据：让系统媒体中心（锁屏/控制中心）显示歌曲、歌手与封面。
+        // 封面只在「缓存确实属于当前歌曲」时才使用，避免切歌后锁屏仍显示上一首封面。
+        val song = state.song
+        if (song == null) {
+            session.setMetadata(null)
+            session.isActive = false
+            return
+        }
+        val meta = MediaMetadataCompat.Builder()
+            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, song.name)
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, song.artistName)
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, song.albumName)
+            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, state.durationMs)
+        song.coverUrl?.let { meta.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it) }
+        if (artworkSongId == song.id) {
+            lastArtworkBitmap?.let { meta.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it) }
+        }
+        session.setMetadata(meta.build())
+        session.isActive = true
+    }
 
     fun attachService(service: PlayerService) {
         serviceRef = WeakReference(service)
@@ -90,6 +172,15 @@ class PlayerController(
                 error = null,
             )
         }
+        // 切歌：立即作废旧封面缓存并同步媒体会话 / 通知 / 小组件，
+        // 避免「切歌后通知栏与锁屏仍显示上一首封面」。
+        if (artworkSongId != song.id) {
+            lastArtworkBitmap = null
+            artworkSongId = null
+        }
+        updateMediaSessionState()
+        updateNotification()
+        updateWidget()
         scope.launch {
             try {
                 // 本地音乐直接使用文件 Uri；在线音乐走远程播放地址
@@ -102,7 +193,7 @@ class PlayerController(
                     }
                     uri = Uri.fromFile(file)
                 } else {
-                    val url = repository.getSongUrl(song.id)
+                    val url = repository.getSongUrl(song)
                     if (url.isNullOrBlank()) {
                         _uiState.update { it.copy(error = "该歌曲暂不支持播放（可能受版权保护）") }
                         return@launch
@@ -130,7 +221,7 @@ class PlayerController(
                 _uiState.update { it.copy(durationMs = song.durationMs, isPlaying = true) }
                 startForegroundService()
                 startPositionLoop()
-                loadLyrics(song.id)
+                loadLyrics(song)
                 updateWidget()
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "获取播放地址失败，请检查网络") }
@@ -141,6 +232,7 @@ class PlayerController(
     fun toggle() {
         val exo = player ?: return
         if (exo.isPlaying) exo.pause() else exo.play()
+        updateMediaSessionState()
         updateNotification()
         updateWidget()
     }
@@ -193,6 +285,7 @@ class PlayerController(
         player?.stop()
         player?.clearMediaItems()
         _uiState.value = PlayerUiState()
+        mediaSession?.isActive = false
         updateWidget()
     }
 
@@ -200,6 +293,8 @@ class PlayerController(
         positionJob?.cancel()
         player?.release()
         player = null
+        mediaSession?.release()
+        mediaSession = null
     }
 
     private fun getPlayer(): ExoPlayer =
@@ -208,6 +303,7 @@ class PlayerController(
             exo.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _uiState.update { it.copy(isPlaying = isPlaying) }
+                    updateMediaSessionState()
                     updateNotification()
                     updateWidget()
                 }
@@ -250,10 +346,10 @@ class PlayerController(
         }
     }
 
-    private fun loadLyrics(songId: Long) {
+    private fun loadLyrics(song: Song) {
         scope.launch {
             val lyrics = try {
-                repository.getLyric(songId)
+                repository.getLyric(song)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -272,20 +368,29 @@ class PlayerController(
         val service = serviceRef?.get() ?: return
         val state = _uiState.value
         val song = state.song ?: return
-        val notification = buildNotification(state, song, lastArtworkBitmap)
+        // 只有缓存封面确实属于当前歌曲时才复用；否则先发一条「无封面」通知，
+        // 等新封面异步加载完成后再刷新（解决切歌后封面不切换）。
+        val cachedArtwork = if (artworkSongId == song.id) lastArtworkBitmap else null
+        val notification = buildNotification(state, song, cachedArtwork)
         service.startForeground(PlayerService.NOTIFICATION_ID, notification)
-        if (lastArtworkBitmap == null) {
+        updateMediaSessionState()
+        if (cachedArtwork == null) {
             loadNotificationArtwork(song) { bitmap ->
+                // 竞态保护：加载期间用户可能又切歌了，过期的封面直接丢弃
+                if (_uiState.value.song?.id != song.id) return@loadNotificationArtwork
                 lastArtworkBitmap = bitmap
+                artworkSongId = song.id
+                updateMediaSessionState()
                 if (bitmap != null) {
                     try {
-                        val updated = buildNotification(state, song, bitmap)
+                        val updated = buildNotification(_uiState.value, song, bitmap)
                         NotificationManagerCompat.from(context)
                             .notify(PlayerService.NOTIFICATION_ID, updated)
                     } catch (_: SecurityException) {
                         // 未授予通知权限，忽略
                     }
                 }
+                updateWidget()
             }
         } else {
             try {
@@ -347,6 +452,7 @@ class PlayerController(
             .setDeleteIntent(stopIntent)
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
+                    .setMediaSession(mediaSession?.sessionToken)
                     .setShowActionsInCompactView(0, 1, 2),
             )
             .addAction(R.drawable.ic_notification, "上一首", prevIntent)
@@ -374,14 +480,8 @@ class PlayerController(
 
     // ---------- 桌面小组件 ----------
 
-    fun updateWidget() {
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val ids = appWidgetManager.getAppWidgetIds(
-            ComponentName(context, WidgetPlayerProvider::class.java),
-        )
-        if (ids.isEmpty()) return
-        val state = _uiState.value
-        val song = state.song
+    /** 构建小组件 RemoteViews（不含封面，封面异步补），保证每次都是完整快照 */
+    private fun buildWidgetViews(state: PlayerUiState, song: Song?): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_player)
 
         // 点击小组件整体打开 App
@@ -419,27 +519,53 @@ class PlayerController(
         views.setOnClickPendingIntent(R.id.widget_next, nextPi)
 
         if (song != null) {
-            views.setTextViewText(R.id.widget_title, song.name)
-            views.setTextViewText(R.id.widget_artist, song.artistName)
+            views.setTextViewText(
+                R.id.widget_title,
+                song.name.ifBlank { context.getString(R.string.not_playing) },
+            )
+            views.setTextViewText(
+                R.id.widget_artist,
+                song.artistName.ifBlank { context.getString(R.string.app_name) },
+            )
         } else {
-            views.setTextViewText(R.id.widget_title, "未在播放")
-            views.setTextViewText(R.id.widget_artist, "qMusic")
+            views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_idle_title))
+            views.setTextViewText(R.id.widget_artist, context.getString(R.string.app_name))
         }
         views.setImageViewResource(
             R.id.widget_play_pause,
             if (state.isPlaying) R.drawable.ic_pause_widget else R.drawable.ic_play_widget,
         )
-        appWidgetManager.updateAppWidget(ids, views)
+        return views
+    }
 
-        // 异步加载封面
+    fun updateWidget() {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val ids = appWidgetManager.getAppWidgetIds(
+            ComponentName(context, WidgetPlayerProvider::class.java),
+        )
+        if (ids.isEmpty()) return
+        val state = _uiState.value
+        val song = state.song
+
+        // 第一次应用：先把封面显式重置为默认图，避免切歌后残留上一首封面
+        val base = buildWidgetViews(state, song)
+        base.setImageViewResource(R.id.widget_cover, R.drawable.ic_notification)
+        appWidgetManager.updateAppWidget(ids, base)
+
+        // 异步加载封面（限制解码尺寸，避免 RemoteViews 位图内存超限导致崩溃）
         val coverUrl = song?.coverUrl
-        if (coverUrl != null) {
-            scope.launch {
-                val bitmap = loadCoverBitmap(coverUrl)
-                if (bitmap != null) {
-                    views.setImageViewBitmap(R.id.widget_cover, bitmap)
-                    appWidgetManager.updateAppWidget(ids, views)
-                }
+        val songId = song?.id
+        if (coverUrl.isNullOrBlank() || songId == null) return
+        scope.launch {
+            try {
+                val bitmap = loadCoverBitmap(coverUrl) ?: return@launch
+                // 竞态保护：加载期间用户可能已切歌，过期封面直接丢弃
+                if (_uiState.value.song?.id != songId) return@launch
+                val withCover = buildWidgetViews(_uiState.value, _uiState.value.song)
+                withCover.setImageViewBitmap(R.id.widget_cover, bitmap)
+                appWidgetManager.updateAppWidget(ids, withCover)
+            } catch (_: Exception) {
+                // 小组件更新失败（如位图超限/系统端异常）时不崩溃
             }
         }
     }
@@ -449,6 +575,7 @@ class PlayerController(
         val result = imageLoader.execute(
             ImageRequest.Builder(context)
                 .data(url)
+                .size(512, 512)
                 .allowHardware(false)
                 .build(),
         )

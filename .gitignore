@@ -29,3 +29,5 @@ Thumbs.db
 *.bak
 # ±æµÿ≤‚ ‘“Ù∆µ
 prototype/test_local.wav
+
+android/.kotlin/

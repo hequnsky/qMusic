@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  桌面小组件配置。
+  2x2 单元格：minWidth/minHeight 兜底（API 26~30），targetCellWidth/Height 供 API 31+ 使用。
+  无自动刷新（updatePeriodMillis=0），状态变化由 App 主动推送，省电且实时。
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="110dp"
     android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_player"
+    android:previewLayout="@layout/widget_player"
+    android:description="@string/widget_added"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

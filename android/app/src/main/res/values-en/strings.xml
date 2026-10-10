@@ -34,6 +34,12 @@
     <string name="play_pause">Play/Pause</string>
     <string name="not_playing">Not playing</string>
 
+    <!-- Home screen widget -->
+    <string name="widget_cover_desc">Album art</string>
+    <string name="widget_idle_title">Not playing</string>
+    <string name="widget_play_pause_desc">Play/Pause</string>
+    <string name="widget_added">Widget added. Control your music from here.</string>
+
     <!-- Mine -->
     <string name="liked_songs">Favorites</string>
     <string name="recent_plays">Recent</string>
@@ -49,6 +55,7 @@
 
     <!-- Search -->
     <string name="search">Search</string>
+    <string name="music_source">Source</string>
     <string name="search_hint">Search songs / artists</string>
     <string name="search_history">Search History</string>
     <string name="hot_search">Hot Search</string>
