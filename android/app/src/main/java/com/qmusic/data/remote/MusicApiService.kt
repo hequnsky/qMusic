@@ -4,12 +4,19 @@ import com.qmusic.data.model.CommentResponse
 import com.qmusic.data.model.LyricResponse
 import com.qmusic.data.model.PersonalizedResponse
 import com.qmusic.data.model.PlaylistDetailResponse
+import com.qmusic.data.model.QrCheckResponse
+import com.qmusic.data.model.QrCreateResponse
+import com.qmusic.data.model.QrKeyResponse
 import com.qmusic.data.model.SearchHotResponse
 import com.qmusic.data.model.SearchResponse
 import com.qmusic.data.model.SongUrlResponse
 import com.qmusic.data.model.TopPlaylistResponse
 import com.qmusic.data.model.TopSongResponse
+import com.qmusic.data.model.UserAccountResponse
+import com.qmusic.data.model.UserDetailResponse
+import retrofit2.Response
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Query
 
 /** 音乐抓取服务 REST 接口 */
@@ -26,6 +33,34 @@ interface MusicApiService {
     /** 热门搜索词 */
     @GET("search/hot")
     suspend fun searchHot(): SearchHotResponse
+
+    // ---------- 网易云账号登录 ----------
+
+    /** 二维码 key */
+    @GET("login/qr/key")
+    suspend fun qrKey(): QrKeyResponse
+
+    /** 生成二维码（返回 base64 data URI） */
+    @GET("login/qr/create")
+    suspend fun qrCreate(
+        @Query("key") key: String,
+        @Query("qrimg") qrimg: Boolean = true,
+    ): QrCreateResponse
+
+    /** 轮询扫码状态（Response 包装以读取 Set-Cookie） */
+    @GET("login/qr/check")
+    suspend fun qrCheck(@Query("key") key: String): Response<QrCheckResponse>
+
+    /** 当前登录账号 */
+    @GET("user/account")
+    suspend fun userAccount(@Header("Cookie") cookie: String): UserAccountResponse
+
+    /** 用户详情（关注/粉丝/动态） */
+    @GET("user/detail")
+    suspend fun userDetail(
+        @Query("uid") uid: Long,
+        @Header("Cookie") cookie: String,
+    ): UserDetailResponse
 
     /** 获取歌曲播放地址 */
     @GET("song/url")

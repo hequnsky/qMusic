@@ -82,6 +82,7 @@ data class Lrc(val lyric: String = "")
 data class LyricLine(
     val timeMs: Long,
     val content: String,
+    val translation: String = "",
 )
 
 /** 歌单 */
@@ -136,6 +137,50 @@ data class SearchHotResult(val hots: List<SearchHotItem> = emptyList())
 
 @Serializable
 data class SearchHotItem(val first: String = "")
+
+/** 网易云二维码登录 */
+@Serializable
+data class QrKeyResponse(val data: QrKeyData = QrKeyData())
+
+@Serializable
+data class QrKeyData(val unikey: String = "")
+
+@Serializable
+data class QrCreateResponse(val data: QrCreateData = QrCreateData())
+
+@Serializable
+data class QrCreateData(val qrimg: String = "", val qrurl: String = "")
+
+@Serializable
+data class QrCheckResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val cookie: String? = null,
+)
+
+/** 用户账号 */
+@Serializable
+data class UserAccountResponse(val profile: UserProfile? = null)
+
+@Serializable
+data class UserProfile(
+    val userId: Long = 0,
+    val nickname: String = "",
+    val avatarUrl: String? = null,
+)
+
+@Serializable
+data class UserDetailResponse(val profile: UserDetailProfile? = null)
+
+@Serializable
+data class UserDetailProfile(
+    val userId: Long = 0,
+    val nickname: String = "",
+    val avatarUrl: String? = null,
+    val follows: Long = 0,
+    val followeds: Long = 0,
+    val eventCount: Long = 0,
+)
 
 /** 歌单详情响应 */
 @Serializable

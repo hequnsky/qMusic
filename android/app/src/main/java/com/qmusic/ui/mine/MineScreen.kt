@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
@@ -43,15 +44,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.local.ServerConfig
@@ -63,7 +67,6 @@ import com.qmusic.data.model.Song
 import com.qmusic.ui.components.PrivacyDialog
 import com.qmusic.ui.components.SectionTitle
 import com.qmusic.ui.components.SongRow
-import com.qmusic.ui.components.showNotImplemented
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
@@ -77,17 +80,26 @@ fun MineScreen(
     onThemeChanged: (Boolean) -> Unit = {},
     onPlaySong: (Song) -> Unit,
     onOpenLocalMusic: () -> Unit = {},
+    onOpenDownloads: () -> Unit = {},
 ) {
     val viewModel: MineViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { MineViewModel(repository) }
+            initializer {
+                MineViewModel(
+                    repository,
+                    this[ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY]
+                        ?: error("Application required"),
+                )
+            }
         },
     )
     val colors = LocalQMusicColors.current
     val favorites by viewModel.favorites.collectAsState()
     val history by viewModel.history.collectAsState()
+    val loginState by viewModel.loginState.collectAsState()
     var showPrivacy by remember { mutableStateOf(false) }
     var showServerDialog by remember { mutableStateOf(false) }
+    var showLogin by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -101,28 +113,38 @@ fun MineScreen(
             modifier = Modifier.fillMaxSize().background(colors.background),
             contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-        item { MineHeader(onStatsClick = { showNotImplemented(context) }) }
+        item { MineHeader(loginState = loginState, onLoginClick = { showLogin = true }) }
 
+        // 功能卡片：2x2 网格（我喜欢的 / 最近播放 / 本地音乐 / 我的下载）
         item {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                ActionCard(
-                    icon = Icons.Filled.Favorite,
-                    label = stringResource(R.string.liked_songs),
-                    onClick = { scope.launch { listState.animateScrollToItem(4) } },
-                )
-                ActionCard(
-                    icon = Icons.Filled.History,
-                    label = stringResource(R.string.recent_plays),
-                    onClick = { scope.launch { listState.animateScrollToItem(recentTitleIndex) } },
-                )
-                ActionCard(
-                    icon = Icons.Filled.Folder,
-                    label = stringResource(R.string.local_music),
-                    onClick = onOpenLocalMusic,
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ActionCard(
+                        icon = Icons.Filled.Favorite,
+                        label = stringResource(R.string.liked_songs),
+                        onClick = { scope.launch { listState.animateScrollToItem(4) } },
+                    )
+                    ActionCard(
+                        icon = Icons.Filled.History,
+                        label = stringResource(R.string.recent_plays),
+                        onClick = { scope.launch { listState.animateScrollToItem(recentTitleIndex) } },
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ActionCard(
+                        icon = Icons.Filled.Folder,
+                        label = stringResource(R.string.local_music),
+                        onClick = onOpenLocalMusic,
+                    )
+                    ActionCard(
+                        icon = Icons.Filled.Download,
+                        label = stringResource(R.string.my_downloads),
+                        onClick = onOpenDownloads,
+                    )
+                }
             }
         }
 
@@ -223,6 +245,39 @@ fun MineScreen(
             }
         }
 
+        // 退出登录（已登录时显示）
+        if (loginState.loggedIn) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 10.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(colors.card)
+                        .clickable {
+                            viewModel.logout()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.logout),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = GradientStart,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        Icons.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        }
+
         item { SectionTitle(title = stringResource(R.string.liked_songs), more = "${favorites.size} ${stringResource(R.string.songs)}") }
         if (favorites.isEmpty()) {
             item { EmptyText(stringResource(R.string.empty_favorite)) }
@@ -289,11 +344,26 @@ fun MineScreen(
             },
         )
     }
+
+    // 网易云二维码登录
+    if (showLogin) {
+        LoginScreen(
+            repository = repository,
+            onBack = { showLogin = false },
+            onLoginSuccess = { cookie, uid ->
+                viewModel.applyLogin(cookie, uid)
+                showLogin = false
+            },
+        )
+    }
     }
 }
 
 @Composable
-private fun MineHeader(onStatsClick: () -> Unit = {}) {
+private fun MineHeader(
+    loginState: LoginUiState,
+    onLoginClick: () -> Unit = {},
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -308,26 +378,63 @@ private fun MineHeader(onStatsClick: () -> Unit = {}) {
             modifier = Modifier.padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier.size(64.dp).clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(Color(0xFFFFD93D), Color(0xFFFF6B6B)))),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("🎧", fontSize = 28.sp)
+            if (loginState.loggedIn && !loginState.avatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = loginState.avatarUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(64.dp).clip(CircleShape),
+                )
+            } else {
+                Box(
+                    modifier = Modifier.size(64.dp).clip(CircleShape)
+                        .background(Brush.linearGradient(listOf(Color(0xFFFFD93D), Color(0xFFFF6B6B)))),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("🎧", fontSize = 28.sp)
+                }
             }
             Spacer(Modifier.width(14.dp))
-            Column {
-                Text("音乐爱好者小Q", fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (loginState.loggedIn) loginState.nickname else "音乐爱好者小Q",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Spacer(Modifier.height(4.dp))
-                Text("🎵 让音乐治愈每一天", fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f))
+                Text(
+                    if (loginState.loggedIn) "🎵 已登录网易云账号" else "🎵 点击登录，同步关注/粉丝/获赞",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.75f),
+                )
+            }
+            if (!loginState.loggedIn) {
+                Text(
+                    stringResource(R.string.login),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.22f))
+                        .clickable(onClick = onLoginClick)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
             }
         }
         Row(
             modifier = Modifier.padding(horizontal = 18.dp).padding(top = 18.dp),
             horizontalArrangement = Arrangement.spacedBy(26.dp),
         ) {
-            listOf("12" to "关注", "58" to "粉丝", "326" to "获赞").forEach { (num, label) ->
-                Column(modifier = Modifier.clickable(onClick = onStatsClick)) {
+            listOf(
+                formatCount(loginState.follows) to "关注",
+                formatCount(loginState.followeds) to "粉丝",
+                formatCount(loginState.eventCount) to "获赞",
+            ).forEach { (num, label) ->
+                Column(modifier = Modifier.clickable(enabled = !loginState.loggedIn, onClick = onLoginClick)) {
                     Text(num, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                     Spacer(Modifier.height(2.dp))
                     Text(label, fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
@@ -335,6 +442,14 @@ private fun MineHeader(onStatsClick: () -> Unit = {}) {
             }
         }
     }
+}
+
+private fun formatCount(count: Long): String {
+    if (count >= 10_000) {
+        val wan = count / 10_000.0
+        return if (wan >= 10) "${wan.toLong()}万" else String.format("%.1f万", wan)
+    }
+    return count.toString()
 }
 
 @Composable

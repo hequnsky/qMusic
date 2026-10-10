@@ -5,6 +5,8 @@ import com.qmusic.data.local.HistoryDao
 import com.qmusic.data.local.entity.Favorite
 import com.qmusic.data.local.entity.History
 import com.qmusic.data.model.Comment
+import com.qmusic.data.model.UserDetailProfile
+import com.qmusic.data.model.UserProfile
 import com.qmusic.data.model.LyricLine
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.PlaylistDetail
@@ -28,11 +30,44 @@ class MusicRepository(
     suspend fun getHotKeywords(limit: Int = 10): List<String> =
         api.searchHot().result.hots.take(limit).map { it.first }
 
+    // ---------- 网易云账号登录 ----------
+
+    /** 获取二维码 key */
+    suspend fun getQrKey(): String = api.qrKey().data.unikey
+
+    /** 生成登录二维码，返回 (base64 图片, 二维码链接) */
+    suspend fun createQr(key: String): Pair<String, String> {
+        val d = api.qrCreate(key, true).data
+        return d.qrimg to d.qrurl
+    }
+
+    /** 轮询二维码状态，返回 (code, cookie)。code: 801=等待扫码 802=待确认 803=登录成功 800=过期 */
+    suspend fun checkQr(key: String): Pair<Int, String> {
+        val resp = api.qrCheck(key)
+        var cookie = resp.body()?.cookie ?: ""
+        if (cookie.isBlank()) {
+            cookie = resp.headers()["Set-Cookie"] ?: resp.raw().header("Set-Cookie") ?: ""
+        }
+        return (resp.body()?.code ?: -1) to cookie
+    }
+
+    /** 登录后获取账号信息 */
+    suspend fun getLoginAccount(cookie: String): UserProfile? = api.userAccount(cookie).profile
+
+    /** 获取用户详情（关注/粉丝/动态） */
+    suspend fun getLoginUserDetail(uid: Long, cookie: String): UserDetailProfile? =
+        api.userDetail(uid, cookie).profile
+
     suspend fun getSongUrl(id: Long): String? =
         api.songUrl(id).data.firstOrNull { !it.url.isNullOrBlank() }?.url
 
-    suspend fun getLyric(id: Long): List<LyricLine> =
-        LrcParser.parse(api.lyric(id).lrc?.lyric.orEmpty())
+    suspend fun getLyric(id: Long): List<LyricLine> {
+        val resp = api.lyric(id)
+        val lrc = LrcParser.parse(resp.lrc?.lyric.orEmpty())
+        val trans = LrcParser.parse(resp.tlyric?.lyric.orEmpty())
+        val transMap = trans.associate { it.timeMs to it.content }
+        return lrc.map { it.copy(translation = transMap[it.timeMs] ?: "") }
+    }
 
     suspend fun getPersonalizedPlaylist(): Playlist? =
         api.personalized(1).result.firstOrNull()

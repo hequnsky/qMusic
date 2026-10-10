@@ -24,6 +24,7 @@ import com.qmusic.ui.comment.CommentScreen
 import com.qmusic.ui.components.MiniPlayerBar
 import com.qmusic.ui.components.QMusicBottomBar
 import com.qmusic.ui.discover.DiscoverScreen
+import com.qmusic.ui.download.DownloadScreen
 import com.qmusic.ui.mine.MineScreen
 import com.qmusic.ui.player.PlayerScreen
 import com.qmusic.ui.playlist.HotPlaylistScreen
@@ -46,6 +47,7 @@ fun MainScreen(
     var playlistDetailId by rememberSaveable { mutableStateOf<Long?>(null) }
     var hotPlaylistOpen by rememberSaveable { mutableStateOf(false) }
     var localMusicOpen by rememberSaveable { mutableStateOf(false) }
+    var downloadOpen by rememberSaveable { mutableStateOf(false) }
     var category by remember { mutableStateOf<CategorySpec?>(null) }
     var commentSong by remember { mutableStateOf<Song?>(null) }
     val playerState by playerController.uiState.collectAsState()
@@ -94,6 +96,7 @@ fun MainScreen(
                         playerOpen = true
                     },
                     onOpenLocalMusic = { localMusicOpen = true },
+                    onOpenDownloads = { downloadOpen = true },
                 )
                 2 -> SearchScreen(
                     repository = app.repository,
@@ -167,6 +170,18 @@ fun MainScreen(
             songName = song.name,
             repository = app.repository,
             onBack = { commentSong = null },
+        )
+    }
+
+    // 我的下载
+    if (downloadOpen) {
+        DownloadScreen(
+            onBack = { downloadOpen = false },
+            onPlaySongs = { songs, index ->
+                playerController.play(songs, index)
+                downloadOpen = false
+                playerOpen = true
+            },
         )
     }
 

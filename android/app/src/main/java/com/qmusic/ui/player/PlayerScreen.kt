@@ -81,11 +81,11 @@ import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Song
+import com.qmusic.data.local.DownloadManager
 import com.qmusic.player.PlayerController
 import com.qmusic.player.PlayerUiState
 import com.qmusic.ui.components.SongCover
 import com.qmusic.ui.components.formatDuration
-import com.qmusic.ui.components.showNotImplemented
 import com.qmusic.ui.theme.Accent
 import com.qmusic.ui.theme.Dark
 import com.qmusic.ui.theme.GradientEnd
@@ -304,7 +304,37 @@ fun PlayerScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 BottomActionItem(label = "评论", onClick = { state.song?.let(onOpenComment) })
-                BottomActionItem(label = "下载", onClick = { showNotImplemented(context) })
+                BottomActionItem(label = "下载", onClick = {
+                    val song = state.song ?: return@BottomActionItem
+                    when {
+                        DownloadManager.isDownloading(song.id) -> {
+                            Toast.makeText(context, R.string.downloading, Toast.LENGTH_SHORT).show()
+                        }
+                        DownloadManager.isDownloaded(context, song.id) -> {
+                            Toast.makeText(context, R.string.downloaded, Toast.LENGTH_SHORT).show()
+                        }
+                        else -> {
+                            Toast.makeText(context, R.string.download_started, Toast.LENGTH_SHORT).show()
+                            scope.launch {
+                                val url = try {
+                                    repository.getSongUrl(song.id)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                                if (url.isNullOrBlank()) {
+                                    Toast.makeText(context, R.string.download_failed, Toast.LENGTH_SHORT).show()
+                                } else {
+                                    val ok = DownloadManager.download(context, song, url)
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) R.string.download_finished else R.string.download_failed,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
+                })
                 BottomActionItem(
                     label = "分享",
                     onClick = {
@@ -637,14 +667,27 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
                 ) {
                     itemsIndexed(state.lyrics) { index, line ->
                         val isCurrent = index == current
-                        Text(
-                            line.content,
-                            fontSize = if (isCurrent) 17.sp else 15.sp,
-                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.35f),
-                            textAlign = TextAlign.Center,
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 30.dp, vertical = 9.dp),
-                        )
+                        ) {
+                            Text(
+                                line.content,
+                                fontSize = if (isCurrent) 17.sp else 15.sp,
+                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.35f),
+                                textAlign = TextAlign.Center,
+                            )
+                            if (line.translation.isNotBlank()) {
+                                Text(
+                                    line.translation,
+                                    fontSize = if (isCurrent) 12.sp else 11.sp,
+                                    color = if (isCurrent) Color.White.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.22f),
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(top = 3.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
