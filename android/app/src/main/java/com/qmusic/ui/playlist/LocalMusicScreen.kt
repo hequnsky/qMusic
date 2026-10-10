@@ -51,13 +51,16 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.qmusic.R
 import com.qmusic.data.local.LocalMusicScanner
+import com.qmusic.data.model.Album
+import com.qmusic.data.model.Artist
 import com.qmusic.data.model.Song
 import com.qmusic.ui.components.SongCover
 import com.qmusic.ui.components.formatDuration
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
+import java.io.File
 
-/** 本地音乐列表页：MediaStore 扫描 + 运行时权限申请 */
+/** 本地音乐列表页：MediaStore 扫描 + 运行时权限申请；设备无本地音乐时展示内置演示歌曲 */
 @Composable
 fun LocalMusicScreen(
     onBack: () -> Unit,
@@ -68,6 +71,7 @@ fun LocalMusicScreen(
     var granted by remember { mutableStateOf(hasAudioPermission(context)) }
     var songs by remember { mutableStateOf<List<Song>?>(null) }
     var denied by remember { mutableStateOf(false) }
+    var usingDemo by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -79,7 +83,14 @@ fun LocalMusicScreen(
 
     LaunchedEffect(granted) {
         if (granted && songs == null) {
-            songs = LocalMusicScanner.scan(context)
+            val scanned = LocalMusicScanner.scan(context)
+            if (scanned.isEmpty()) {
+                // 设备上没有本地音乐时，展示内置演示歌曲（打包在 res/raw 中）
+                songs = loadDemoSongs(context)
+                usingDemo = true
+            } else {
+                songs = scanned
+            }
         }
     }
 
@@ -165,6 +176,18 @@ fun LocalMusicScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 24.dp),
                 ) {
+                    if (usingDemo) {
+                        item {
+                            Text(
+                                stringResource(R.string.demo_music_hint),
+                                fontSize = 12.sp,
+                                color = colors.textSecondary,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
                     items(localSongs, key = { it.id }) { song ->
                         Row(
                             modifier = Modifier
@@ -215,3 +238,33 @@ private fun audioPermission(): String =
 
 private fun hasAudioPermission(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, audioPermission()) == PackageManager.PERMISSION_GRANTED
+
+/** 把打包在 res/raw 中的 3 首演示 WAV 复制到缓存目录，作为本地歌曲播放 */
+private fun loadDemoSongs(context: Context): List<Song> {
+    val dir = File(context.cacheDir, "demo_music").apply { mkdirs() }
+    val demos = listOf(
+        Triple(R.raw.test_song1, "演示歌曲 · 星光", 8_000L),
+        Triple(R.raw.test_song2, "演示歌曲 · 晴空", 10_000L),
+        Triple(R.raw.test_song3, "演示歌曲 · 暖阳", 12_000L),
+    )
+    return demos.mapIndexedNotNull { index, (rawId, name, durationMs) ->
+        val target = File(dir, "demo_song${index + 1}.wav")
+        if (!target.exists()) {
+            try {
+                context.resources.openRawResource(rawId).use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                }
+            } catch (_: Exception) {
+                return@mapIndexedNotNull null
+            }
+        }
+        Song(
+            id = -(index + 1).toLong(),
+            name = name,
+            artists = listOf(Artist(name = "qMusic 内置")),
+            album = Album(name = "本地演示"),
+            duration = durationMs,
+            localPath = target.absolutePath,
+        )
+    }
+}

@@ -113,4 +113,7 @@
     <!-- Top charts & search suggestions -->
     <string name="toplist">Top Charts</string>
     <string name="search_suggest">Suggestions</string>
+
+    <!-- Built-in demo songs -->
+    <string name="demo_music_hint">No local music found. Tap a built-in demo song below to play.</string>
 </resources>

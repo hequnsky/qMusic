@@ -113,4 +113,7 @@
     <!-- 排行榜与搜索建议 -->
     <string name="toplist">排行榜</string>
     <string name="search_suggest">搜索建议</string>
+
+    <!-- 内置演示歌曲 -->
+    <string name="demo_music_hint">设备上暂无本地音乐，以下为内置演示歌曲（点按即可播放）</string>
 </resources>
