@@ -215,18 +215,6 @@ fun MainScreen(
         )
     }
 
-    // 我的下载
-    if (downloadOpen) {
-        DownloadScreen(
-            onBack = { downloadOpen = false },
-            onPlaySongs = { songs, index ->
-                playerController.play(songs, index)
-                downloadOpen = false
-                playerOpen = true
-            },
-        )
-    }
-
     // 我喜欢的（独立列表页，点列表项即播放）
     if (favoriteSongsOpen) {
         FavoriteSongsScreen(
@@ -253,19 +241,45 @@ fun MainScreen(
         )
     }
 
+    if (playerOpen) {
+        PlayerScreen(
+            playerController = playerController,
+            repository = app.repository,
+            onClose = { playerOpen = false },
+            onOpenComment = { song -> commentSong = song },
+            // 从播放页进入「我的歌单 / 已下载」时不再关掉播放页，
+            // 而是让目标页直接覆盖在播放页之上 —— 返回时自然退回播放页，
+            // 避免「播放页瞬间消失 → 目标页出现」造成的闪烁（跳转更顺）。
+            onOpenDownloads = { downloadOpen = true },
+            onManagePlaylists = { myPlaylistsOpen = true },
+        )
+    }
+
+    // 我的下载（覆盖层，可叠加在播放页之上）
+    if (downloadOpen) {
+        DownloadScreen(
+            onBack = { downloadOpen = false },
+            onPlaySongs = { songs, index ->
+                playerController.play(songs, index)
+                downloadOpen = false
+                playerOpen = true
+            },
+        )
+    }
+
     // 我的歌单（本地歌单管理：创建/重命名/删除）
     if (myPlaylistsOpen) {
         MyPlaylistsScreen(
             repository = app.repository,
             onBack = { myPlaylistsOpen = false },
             onOpenPlaylist = { playlist ->
-                myPlaylistsOpen = false
+                // 详情页叠加在歌单列表之上，返回时回到歌单列表（而不是直接跳回播放页）
                 openedLocalPlaylist = playlist
             },
         )
     }
 
-    // 本地歌单详情
+    // 本地歌单详情（叠加在「我的歌单」之上）
     openedLocalPlaylist?.let { playlist ->
         PlaylistSongsScreen(
             repository = app.repository,
@@ -275,24 +289,9 @@ fun MainScreen(
             onPlaySongs = { songs, index ->
                 playerController.play(songs, index)
                 openedLocalPlaylist = null
+                // 播放后收起歌单相关页面，露出播放页
+                myPlaylistsOpen = false
                 playerOpen = true
-            },
-        )
-    }
-
-    if (playerOpen) {
-        PlayerScreen(
-            playerController = playerController,
-            repository = app.repository,
-            onClose = { playerOpen = false },
-            onOpenComment = { song -> commentSong = song },
-            onOpenDownloads = {
-                playerOpen = false
-                downloadOpen = true
-            },
-            onManagePlaylists = {
-                playerOpen = false
-                myPlaylistsOpen = true
             },
         )
     }

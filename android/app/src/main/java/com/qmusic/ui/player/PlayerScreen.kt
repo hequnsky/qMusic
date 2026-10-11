@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notes
@@ -40,12 +41,15 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -68,6 +72,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -193,6 +198,7 @@ fun PlayerScreen(
                     ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.share)) },
+                            leadingIcon = { MenuIcon(Icons.Filled.Share) },
                             onClick = {
                                 showMore = false
                                 val song = state.song ?: return@DropdownMenuItem
@@ -206,8 +212,28 @@ fun PlayerScreen(
                                 )
                             },
                         )
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                        // 歌单管理 / 已下载：从底部按钮行收进「更多」菜单，避免底部一行过挤
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.my_playlists)) },
+                            leadingIcon = { MenuIcon(Icons.Filled.QueueMusic) },
+                            onClick = {
+                                showMore = false
+                                onManagePlaylists()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.my_downloads)) },
+                            leadingIcon = { MenuIcon(Icons.Filled.Download) },
+                            onClick = {
+                                showMore = false
+                                onOpenDownloads()
+                            },
+                        )
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.timer_off)) },
+                            leadingIcon = { MenuIcon(Icons.Filled.Timer) },
                             onClick = {
                                 showMore = false
                                 showTimerDialog = true
@@ -265,9 +291,54 @@ fun PlayerScreen(
                 }
             }
 
-            // 进度与控制
+            // 快捷操作行：评论 / 下载 / 歌单 / 更多
+            // 原先贴在页面最底部，现整体上移到进度条之上，
+            // 让进度条与播放控制按钮顺势下移、更靠近屏幕底部（单手拇指区）。
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                BottomActionItem(label = "评论", onClick = { state.song?.let(onOpenComment) })
+                BottomActionItem(label = "下载", onClick = {
+                    val song = state.song ?: return@BottomActionItem
+                    when {
+                        DownloadManager.isDownloading(song.id) -> {
+                            Toast.makeText(context, R.string.downloading, Toast.LENGTH_SHORT).show()
+                        }
+                        DownloadManager.isDownloaded(context, song.id) -> {
+                            Toast.makeText(context, R.string.downloaded, Toast.LENGTH_SHORT).show()
+                        }
+                        else -> {
+                            Toast.makeText(context, R.string.download_started, Toast.LENGTH_SHORT).show()
+                            scope.launch {
+                                val url = try {
+                                    repository.getSongUrl(song)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                                if (url.isNullOrBlank()) {
+                                    Toast.makeText(context, R.string.download_failed, Toast.LENGTH_SHORT).show()
+                                } else {
+                                    val ok = DownloadManager.download(context, song, url)
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) R.string.download_finished else R.string.download_failed,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
+                })
+                BottomActionItem(label = "歌单", onClick = {
+                    if (state.song != null) showAddToPlaylist = true
+                })
+                BottomActionItem(label = "更多", onClick = { showMore = true })
+            }
+
+            // 进度与控制（位于快捷操作行之下）
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(top = 10.dp, bottom = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(top = 14.dp, bottom = 22.dp),
             ) {
                 val duration = state.durationMs.coerceAtLeast(1L)
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -334,60 +405,19 @@ fun PlayerScreen(
                 }
             }
 
-            // 底部操作：评论 / 下载当前歌曲 / 歌单 / 已下载 / 更多
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 28.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                BottomActionItem(label = "评论", onClick = { state.song?.let(onOpenComment) })
-                BottomActionItem(label = "下载", onClick = {
-                    val song = state.song ?: return@BottomActionItem
-                    when {
-                        DownloadManager.isDownloading(song.id) -> {
-                            Toast.makeText(context, R.string.downloading, Toast.LENGTH_SHORT).show()
-                        }
-                        DownloadManager.isDownloaded(context, song.id) -> {
-                            Toast.makeText(context, R.string.downloaded, Toast.LENGTH_SHORT).show()
-                        }
-                        else -> {
-                            Toast.makeText(context, R.string.download_started, Toast.LENGTH_SHORT).show()
-                            scope.launch {
-                                val url = try {
-                                    repository.getSongUrl(song)
-                                } catch (e: Exception) {
-                                    null
-                                }
-                                if (url.isNullOrBlank()) {
-                                    Toast.makeText(context, R.string.download_failed, Toast.LENGTH_SHORT).show()
-                                } else {
-                                    val ok = DownloadManager.download(context, song, url)
-                                    Toast.makeText(
-                                        context,
-                                        if (ok) R.string.download_finished else R.string.download_failed,
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                }
-                            }
-                        }
-                    }
-                })
-                BottomActionItem(label = "歌单", onClick = {
-                    if (state.song != null) showAddToPlaylist = true
-                })
-                BottomActionItem(label = "已下载", onClick = onOpenDownloads)
-                BottomActionItem(label = "更多", onClick = { showMore = true })
-            }
         }
 
-        // 错误提示
+        // 错误提示（如「该歌曲暂不支持播放」）
+        // 布局调整后底部已被「操作行 + 进度条 + 播放按钮」占满，
+        // 提示改到顶部标题栏下方，避免压住进度条。
         state.error?.let { err ->
             Text(
                 err,
                 fontSize = 12.sp,
                 color = Color.White,
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 96.dp)
+                    .align(Alignment.TopCenter)
+                    .padding(top = 108.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color(0xCC000000))
                     .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -857,6 +887,12 @@ private fun ThinProgressBar(
             )
         }
     }
+}
+
+/** 「更多」菜单项图标：统一 18dp 尺寸，颜色跟随菜单内容色 */
+@Composable
+private fun MenuIcon(icon: ImageVector) {
+    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
 }
 
 @Composable
