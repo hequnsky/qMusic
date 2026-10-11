@@ -176,14 +176,16 @@ fun PlayerScreen(
                 IconButton(onClick = onClose) {
                     Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "收起", tint = Color.White)
                 }
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(stringResource(R.string.currently_playing), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "汽水音乐 · 每日推荐",
-                        color = Color.White.copy(alpha = 0.5f),
-                        fontSize = 11.sp,
-                    )
-                }
+                // 只保留「正在播放」。原先下面还有一行写死的「汽水音乐 · 每日推荐」，
+                // 但现在音源不止汽水（网易云/QQ/酷狗/酷我等多源聚合），写死的来源文案已经不成立，去掉。
+                Text(
+                    stringResource(R.string.currently_playing),
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
                 IconButton(onClick = { showLyrics = true }) {
                     Icon(Icons.Filled.Notes, contentDescription = "歌词", tint = Color.White)
                 }
@@ -279,25 +281,21 @@ fun PlayerScreen(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(14.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        if (state.isFavorite) "❤️ 已喜欢" else "🤍 喜欢",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (state.isFavorite) Accent else Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.clickable { viewModel.toggleFavorite() },
-                    )
-                }
             }
 
-            // 快捷操作行：评论 / 下载 / 歌单 / 更多
-            // 原先贴在页面最底部，现整体上移到进度条之上，
-            // 让进度条与播放控制按钮顺势下移、更靠近屏幕底部（单手拇指区）。
+            // 快捷操作行：喜欢 / 评论 / 下载 / 歌单 / 更多
+            // 「喜欢」原先单独占歌曲信息下方一整行，现并入本行并排第一位，省下一行高度。
+            // 本行整体位于进度条之上，进度条与播放控制按钮顺势下移、更靠近屏幕底部（单手拇指区）。
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
+                BottomActionItem(
+                    label = if (state.isFavorite) "已喜欢" else "喜欢",
+                    icon = if (state.isFavorite) "❤️" else "🤍",
+                    labelColor = if (state.isFavorite) Accent else Color.White.copy(alpha = 0.7f),
+                    onClick = { viewModel.toggleFavorite() },
+                )
                 BottomActionItem(label = "评论", onClick = { state.song?.let(onOpenComment) })
                 BottomActionItem(label = "下载", onClick = {
                     val song = state.song ?: return@BottomActionItem
@@ -895,16 +893,28 @@ private fun MenuIcon(icon: ImageVector) {
     Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
 }
 
+/**
+ * 底部快捷操作项（图标 + 文字上下排列）。
+ *
+ * @param icon       上方小图标；默认是中性圆点，可传 emoji（如喜欢项的 🤍/❤️）
+ * @param labelColor 文字颜色；喜欢项在「已喜欢」时用主题强调色
+ */
 @Composable
-private fun BottomActionItem(label: String, onClick: () -> Unit) {    Column(
+private fun BottomActionItem(
+    label: String,
+    onClick: () -> Unit,
+    icon: String = "•",
+    labelColor: Color = Color.White.copy(alpha = 0.7f),
+) {
+    Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 2.dp),
     ) {
-        Text("•", fontSize = 16.sp, color = Color.White.copy(alpha = 0.7f))
+        Text(icon, fontSize = 16.sp, color = labelColor)
         Spacer(Modifier.height(2.dp))
-        Text(label, fontSize = 10.5.sp, color = Color.White.copy(alpha = 0.7f))
+        Text(label, fontSize = 10.5.sp, color = labelColor)
     }
 }
