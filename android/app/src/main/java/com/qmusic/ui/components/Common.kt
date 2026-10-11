@@ -134,9 +134,19 @@ fun SongRow(
     }
 }
 
-/** 区块标题 */
+/**
+ * 区块标题。
+ *
+ * [onMore] 为 null 时**不渲染**「更多 ›」——
+ * 之前它有个默认空实现 `{}`，导致「热搜榜」这些没接线的区块也显示「更多」，
+ * 点了完全没反应（用户反馈的「热搜版更多没有反应」即由此而来）。
+ */
 @Composable
-fun SectionTitle(title: String, more: String = stringResource(R.string.more), onMore: () -> Unit = {}) {
+fun SectionTitle(
+    title: String,
+    more: String = stringResource(R.string.more),
+    onMore: (() -> Unit)? = null,
+) {
     val colors = LocalQMusicColors.current
     Row(
         modifier = Modifier.fillMaxWidth()
@@ -146,12 +156,19 @@ fun SectionTitle(title: String, more: String = stringResource(R.string.more), on
     ) {
         Text(title, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
         Spacer(Modifier.weight(1f))
-        Text(
-            more,
-            fontSize = 12.sp,
-            color = colors.textSecondary,
-            modifier = Modifier.clickable(onClick = onMore),
-        )
+        if (onMore != null) {
+            // 「更多 ›」原来是纯文字可点，热区只有十几个 dp，很容易点不中（表现为「点了没反应」）。
+            // 这里加大到 12dp 横向 + 6dp 纵向内边距的可点区域，视觉大小保持不变。
+            Text(
+                more,
+                fontSize = 12.sp,
+                color = colors.textSecondary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(onClick = onMore)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
     }
 }
 

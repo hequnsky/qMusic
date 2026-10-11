@@ -240,6 +240,18 @@ data class SearchHotResult(val hots: List<SearchHotItem> = emptyList())
 @Serializable
 data class SearchHotItem(val first: String = "")
 
+/** 热搜榜详情（/search/hot/detail）：比 /search/hot 更全，且带热度值 */
+@Serializable
+data class SearchHotDetailResponse(val data: List<HotDetailItem> = emptyList())
+
+@Serializable
+data class HotDetailItem(
+    val searchWord: String = "",
+    val score: Long = 0,
+    /** 榜单上的一句话推荐语，可能为空 */
+    val content: String = "",
+)
+
 /** 网易云二维码登录 */
 @Serializable
 data class QrKeyResponse(val data: QrKeyData = QrKeyData())

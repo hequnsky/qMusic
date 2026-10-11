@@ -5,7 +5,7 @@
 
 | 当前版本 | 更新日志 | APK 产物名 |
 | --- | --- | --- |
-| **1.03** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.03-release.apk` |
+| **1.04** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.04-release.apk` |
 
 ![原型 - 发现页](prototype/screenshots/discover.png)
 
@@ -31,6 +31,26 @@
   脚本会依次完成：版本号 +0.01 → 编译 → 归档到 `android/dist/` → 打印产物路径。
 
 - 每个版本的变更都记录在 [docs/CHANGELOG.md](docs/CHANGELOG.md)。
+
+### 调试用 debug 包
+
+日常调试请一律使用 **debug 包**（`build-apk.sh debug` / `build-apk.bat debug`）：
+
+| 项 | 说明 |
+| --- | --- |
+| 签名 | **与 release 同一份证书** —— debug 与 release 可互相覆盖安装，调试时无需卸载，本地收藏/歌单与桌面小组件都不会丢（本机缺 release keystore 时自动回落到默认 debug 证书） |
+| 默认服务器地址 | `http://127.0.0.1:3000/` —— 在电脑上执行一次 `adb reverse tcp:3000 tcp:3000` 即可连通本机音乐服务，不依赖局域网 IP、换 WiFi 也不用重设 |
+| 产物名 | `qMusic-<版本>-debug.apk`（与 release 同版本号） |
+
+```bash
+# 真机调试三步
+adb reverse tcp:3000 tcp:3000          # 端口转发
+cd android && ./gradlew assembleDebug  # 或 build-apk.sh debug
+adb install -r app/build/outputs/apk/debug/qMusic-*-debug.apk
+```
+
+> release 包默认地址仍是模拟器用的 `10.0.2.2`；真机使用 release 包时，
+> 需在「我的 → 服务器地址」里改成电脑的局域网 IP。
 
 ---
 
@@ -115,7 +135,7 @@ open prototype/index.html          # macOS
 # 3) 打包 Android APK（需要 JDK17 + Android SDK）
 cd android
 ./build-apk.sh                 # 一键：版本号 +0.01 → 编译 → 归档到 dist/
-# 产物：android/dist/qMusic-1.03-release.apk
+# 产物：android/dist/qMusic-1.04-release.apk
 ```
 
 > 没有编译多音源服务也能正常使用：网关会自动降级，客户端只显示网易云一个音源。

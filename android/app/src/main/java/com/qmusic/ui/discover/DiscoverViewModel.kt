@@ -24,6 +24,14 @@ class DiscoverViewModel(private val repository: MusicRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(DiscoverUiState())
     val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
 
+    /**
+     * 推荐歌单池。
+     *
+     * 网易云 /personalized 在同一账号/IP 下返回顺序固定，所以「换一换」不能靠重新请求，
+     * 必须在本地换一个——这里缓存一批，每次 refresh 随机切换到一个**不同于当前**的歌单。
+     */
+    private var heroPool: List<Playlist> = emptyList()
+
     init {
         refresh()
     }
@@ -32,15 +40,21 @@ class DiscoverViewModel(private val repository: MusicRepository) : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true, error = null) }
             try {
-                val hero = repository.getPersonalizedPlaylist()
-                val playlists = repository.getTopPlaylists(10)
-                val songs = if (hero != null) {
-                    repository.getPlaylistDetail(hero.id)?.tracks?.take(20) ?: emptyList()
-                } else {
-                    emptyList()
+                if (heroPool.isEmpty()) {
+                    heroPool = repository.getPersonalizedPlaylists(10)
                 }
+                val currentId = _uiState.value.hero?.id
+                // 优先换到另一个歌单；池里只有一个（或首次）时就用第一个
+                val next = heroPool.filter { it.id != currentId }.randomOrNull()
+                    ?: heroPool.firstOrNull()
+
+                val playlists = repository.getTopPlaylists(10)
+                val songs = next
+                    ?.let { repository.getPlaylistDetail(it.id)?.tracks?.take(20) }
+                    .orEmpty()
+
                 _uiState.value = DiscoverUiState(
-                    hero = hero,
+                    hero = next,
                     playlists = playlists,
                     songs = songs,
                     loading = false,

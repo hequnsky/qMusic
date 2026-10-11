@@ -67,6 +67,7 @@ import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
+import com.qmusic.ui.toplist.musicToplists
 
 @Composable
 fun DiscoverScreen(
@@ -113,7 +114,8 @@ fun DiscoverScreen(
         item { ChipsRow(onCategoryClick = { name -> onOpenCategory(categorySpecOf(name)) }) }
 
         item { SectionTitle(title = stringResource(R.string.toplist), onMore = onOpenToplists) }
-        if (toplists.orEmpty().isEmpty()) {
+        val shownToplists = toplists.orEmpty().musicToplists().take(8)
+        if (shownToplists.isEmpty()) {
             item {
                 Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = GradientStart, modifier = Modifier.size(22.dp))
@@ -125,7 +127,7 @@ fun DiscoverScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    itemsIndexed(toplists.orEmpty().take(8), key = { index, item -> "$index-${item.id}" }) { index, toplist ->
+                    itemsIndexed(shownToplists, key = { index, item -> "$index-${item.id}" }) { index, toplist ->
                         ToplistCard(toplist = toplist, onClick = { onOpenPlaylist(toplist.id) })
                     }
                 }

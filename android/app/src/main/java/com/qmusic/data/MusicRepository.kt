@@ -11,6 +11,7 @@ import com.qmusic.data.local.entity.PlaylistWithCount
 import com.qmusic.data.model.Album
 import com.qmusic.data.model.Artist
 import com.qmusic.data.model.Comment
+import com.qmusic.data.model.HotDetailItem
 import com.qmusic.data.model.Toplist
 import com.qmusic.data.model.UserDetailProfile
 import com.qmusic.data.model.UserProfile
@@ -45,14 +46,40 @@ class MusicRepository(
         source: String = Song.SOURCE_NETEASE,
     ): List<Song> {
         if (source == Song.SOURCE_NETEASE || source.isBlank()) {
-            return enrichCovers(api.search(keywords, limit).result.songs)
+            return searchNetease(keywords, limit)
         }
         return try {
             val resp = api.multiSearch(source, keywords, limit)
-            if (resp.ok && resp.songs.isNotEmpty()) resp.songs.map { it.toSong() }
-            else enrichCovers(api.search(keywords, limit).result.songs)
+            // 多音源同样做「原版优先」，否则切到 QQ/酷狗 后 DJ 版依旧霸屏
+            if (resp.ok && resp.songs.isNotEmpty()) resp.songs.map { it.toSong() }.preferOriginals()
+            else searchNetease(keywords, limit)
         } catch (e: Exception) {
-            enrichCovers(api.search(keywords, limit).result.songs)
+            searchNetease(keywords, limit)
+        }
+    }
+
+    /** 网易云搜索 + 封面回填 + 原版优先排序（三条路径共用） */
+    private suspend fun searchNetease(keywords: String, limit: Int): List<Song> =
+        enrichCovers(api.search(keywords, limit).result.songs).preferOriginals()
+
+    /**
+     * 二次创作版本（DJ 版 / 翻唱 / 加速版…）识别关键词。
+     *
+     * 现象：用热搜词搜索时，结果里夹杂大量「xxx(1.1xDJ版)」「xxx 翻唱」，
+     * 原版反而被挤到后面（用户反馈的「搜索以 DJ 为主」即由此而来）。
+     * 这里把这类版本整体后移，不删除、只是降级排序。
+     */
+    private val reworkKeywords = listOf("dj", "remix", "翻唱", "加速", "慢摇", "抖音", "电音版")
+
+    /**
+     * 原版优先：稳定排序把二次创作版本排到后面。
+     * `sortedBy` 是稳定排序，同组内保持接口返回的原始相对顺序，不会打乱相关度。
+     */
+    private fun List<Song>.preferOriginals(): List<Song> {
+        if (size <= 1) return this
+        return sortedBy { song ->
+            val name = song.name.lowercase()
+            if (reworkKeywords.any { name.contains(it) }) 1 else 0
         }
     }
 
@@ -102,6 +129,10 @@ class MusicRepository(
 
     suspend fun getHotKeywords(limit: Int = 10): List<String> =
         api.searchHot().result.hots.take(limit).map { it.first }
+
+    /** 完整热搜榜（/search/hot/detail，约 20 条，带热度值）——「搜索页 → 热搜榜 → 更多」使用 */
+    suspend fun getHotSearchDetails(limit: Int = 30): List<HotDetailItem> =
+        api.searchHotDetail().data.take(limit)
 
     suspend fun getSearchSuggest(keywords: String, limit: Int = 6): List<Song> =
         enrichCovers(api.searchSuggest(keywords).result.songs.take(limit).map { it.toSong() })
@@ -170,8 +201,16 @@ class MusicRepository(
         return getLyric(song.id)
     }
 
-    suspend fun getPersonalizedPlaylist(): Playlist? =
-        api.personalized(1).result.firstOrNull()
+    /**
+     * 每日推荐歌单**池**。
+     *
+     * 为什么一次取多个：网易云 /personalized 在同一账号/IP 下返回顺序是**固定**的
+     * （实测连续 5 次首个歌单完全一致），所以「换一换」若每次都取 firstOrNull()
+     * 等于什么都没换。这里一次取回一批，由上层在本地轮换/随机，
+     * 既保证每次点击都有变化，也省掉重复请求。
+     */
+    suspend fun getPersonalizedPlaylists(limit: Int = 10): List<Playlist> =
+        api.personalized(limit).result
 
     suspend fun getTopPlaylists(limit: Int = 10): List<Playlist> =
         api.topPlaylist(limit).playlists

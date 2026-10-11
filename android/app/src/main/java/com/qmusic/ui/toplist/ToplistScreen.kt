@@ -62,7 +62,8 @@ fun ToplistScreen(
 
     LaunchedEffect(Unit) {
         toplists = try {
-            repository.getToplists()
+            // 过滤掉车友榜/直播榜/派对榜等非音乐类运营榜，只留真正的音乐榜单
+            repository.getToplists().musicToplists()
         } catch (_: Exception) {
             failed = true
             emptyList()

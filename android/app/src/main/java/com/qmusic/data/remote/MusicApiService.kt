@@ -11,6 +11,7 @@ import com.qmusic.data.model.PlaylistDetailResponse
 import com.qmusic.data.model.QrCheckResponse
 import com.qmusic.data.model.QrCreateResponse
 import com.qmusic.data.model.QrKeyResponse
+import com.qmusic.data.model.SearchHotDetailResponse
 import com.qmusic.data.model.SearchHotResponse
 import com.qmusic.data.model.SearchResponse
 import com.qmusic.data.model.SearchSuggestResponse
@@ -40,6 +41,10 @@ interface MusicApiService {
     /** 热门搜索词 */
     @GET("search/hot")
     suspend fun searchHot(): SearchHotResponse
+
+    /** 热搜榜详情（更全，带热度值） */
+    @GET("search/hot/detail")
+    suspend fun searchHotDetail(): SearchHotDetailResponse
 
     /** 搜索建议 */
     @GET("search/suggest")

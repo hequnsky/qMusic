@@ -27,8 +27,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,6 +84,15 @@ fun SearchScreen(
     val suggestions by viewModel.suggestions.collectAsState()
     val sources by viewModel.sources.collectAsState()
     val selectedSource by viewModel.selectedSource.collectAsState()
+
+    // 每次进入搜索页都重新探测一次可用音源。
+    // ViewModel 在 Tab 间切换时会被复用，如果只在 init 拉一次，
+    // 那么「先开 App、后启多音源服务」的情况下音源条永远不会出现 —— 用户反馈的
+    // 「其他音乐源没有出现」就是这么来的。
+    LaunchedEffect(Unit) { viewModel.loadSources() }
+
+    // 完整热搜榜（点「热搜榜 → 更多」打开）
+    var showHotBoard by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().background(colors.background)) {
         // 搜索框
@@ -136,7 +149,7 @@ fun SearchScreen(
         }
 
         if (query.isBlank()) {
-            SearchHome(viewModel = viewModel)
+            SearchHome(viewModel = viewModel, onOpenHotBoard = { showHotBoard = true })
         } else {
             Column(Modifier.fillMaxSize()) {
                 SearchSuggestRow(
@@ -152,6 +165,18 @@ fun SearchScreen(
                 )
             }
         }
+    }
+
+    // 完整热搜榜（覆盖在搜索页之上）
+    if (showHotBoard) {
+        HotSearchScreen(
+            repository = repository,
+            onBack = { showHotBoard = false },
+            onPick = { word ->
+                showHotBoard = false
+                viewModel.submitSearch(word)
+            },
+        )
     }
 }
 
@@ -200,7 +225,7 @@ private fun SourceChipRow(
 }
 
 @Composable
-private fun SearchHome(viewModel: SearchViewModel) {
+private fun SearchHome(viewModel: SearchViewModel, onOpenHotBoard: () -> Unit) {
     val colors = LocalQMusicColors.current
     val history by viewModel.history.collectAsState()
     val hotKeywords by viewModel.hotKeywords.collectAsState()
@@ -264,7 +289,7 @@ private fun SearchHome(viewModel: SearchViewModel) {
         }
 
         item {
-            SectionTitle(title = stringResource(R.string.hot_search))
+            SectionTitle(title = stringResource(R.string.hot_search), onMore = onOpenHotBoard)
         }
         itemsIndexed(hotKeywords) { index, keyword ->
             Row(

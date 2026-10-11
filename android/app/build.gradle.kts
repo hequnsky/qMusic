@@ -56,6 +56,20 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 调试统一走 debug 包，并且**沿用 release 证书**签名。
+            //
+            // 原因：debug 与 release 若各用一套证书，二者无法互相覆盖安装，
+            // 每次切换都得先卸载 —— 本地收藏/歌单会被清空，桌面小组件实例也会被移除。
+            // 同证书后 debug 可以直接覆盖 release（反之亦然），调试期数据不丢。
+            // 若本机没有 release keystore（他人 clone 后首次构建），自动回落到默认 debug 证书。
+            val ks = rootProject.file(prop("qmusic.storeFile") ?: "qmusic.keystore")
+            if (ks.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            applicationIdSuffix = null
+            isMinifyEnabled = false
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

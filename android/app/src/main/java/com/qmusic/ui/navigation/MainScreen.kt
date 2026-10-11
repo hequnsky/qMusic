@@ -28,6 +28,8 @@ import com.qmusic.ui.components.MiniPlayerBar
 import com.qmusic.ui.components.QMusicBottomBar
 import com.qmusic.ui.discover.DiscoverScreen
 import com.qmusic.ui.download.DownloadScreen
+import com.qmusic.ui.mine.FavoriteSongsScreen
+import com.qmusic.ui.mine.HistorySongsScreen
 import com.qmusic.ui.mine.MineScreen
 import com.qmusic.ui.player.PlayerScreen
 import com.qmusic.ui.playlist.HotPlaylistScreen
@@ -56,6 +58,8 @@ fun MainScreen(
     var localMusicOpen by rememberSaveable { mutableStateOf(false) }
     var downloadOpen by rememberSaveable { mutableStateOf(false) }
     var myPlaylistsOpen by rememberSaveable { mutableStateOf(false) }
+    var favoriteSongsOpen by rememberSaveable { mutableStateOf(false) }
+    var historySongsOpen by rememberSaveable { mutableStateOf(false) }
     // 打开的本地歌单（null = 未打开），直接存歌单对象，详情页才能显示真实歌单名
     var openedLocalPlaylist by remember { mutableStateOf<LocalPlaylist?>(null) }
     var category by remember { mutableStateOf<CategorySpec?>(null) }
@@ -131,6 +135,8 @@ fun MainScreen(
                     onOpenLocalMusic = { localMusicOpen = true },
                     onOpenDownloads = { downloadOpen = true },
                     onOpenMyPlaylists = { myPlaylistsOpen = true },
+                    onOpenFavorites = { favoriteSongsOpen = true },
+                    onOpenHistory = { historySongsOpen = true },
                 )
                 2 -> SearchScreen(
                     repository = app.repository,
@@ -216,6 +222,32 @@ fun MainScreen(
             onPlaySongs = { songs, index ->
                 playerController.play(songs, index)
                 downloadOpen = false
+                playerOpen = true
+            },
+        )
+    }
+
+    // 我喜欢的（独立列表页，点列表项即播放）
+    if (favoriteSongsOpen) {
+        FavoriteSongsScreen(
+            repository = app.repository,
+            onBack = { favoriteSongsOpen = false },
+            onPlaySongs = { songs, index ->
+                playerController.play(songs, index)
+                favoriteSongsOpen = false
+                playerOpen = true
+            },
+        )
+    }
+
+    // 最近播放（独立列表页）
+    if (historySongsOpen) {
+        HistorySongsScreen(
+            repository = app.repository,
+            onBack = { historySongsOpen = false },
+            onPlaySongs = { songs, index ->
+                playerController.play(songs, index)
+                historySongsOpen = false
                 playerOpen = true
             },
         )

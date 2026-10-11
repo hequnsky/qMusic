@@ -2,7 +2,6 @@ package com.qmusic.ui.mine
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,8 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -39,7 +36,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,19 +57,10 @@ import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.local.ServerConfig
-import com.qmusic.data.local.entity.Favorite
-import com.qmusic.data.local.entity.History
-import com.qmusic.data.model.Album
-import com.qmusic.data.model.Artist
 import com.qmusic.data.model.Song
 import com.qmusic.ui.components.PrivacyDialog
-import com.qmusic.ui.components.SectionTitle
-import com.qmusic.ui.components.SongRow
-import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
-import com.qmusic.ui.theme.TextSecondary
-import kotlinx.coroutines.launch
 
 @Composable
 fun MineScreen(
@@ -84,6 +71,8 @@ fun MineScreen(
     onOpenLocalMusic: () -> Unit = {},
     onOpenDownloads: () -> Unit = {},
     onOpenMyPlaylists: () -> Unit = {},
+    onOpenFavorites: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
 ) {
     val viewModel: MineViewModel = viewModel(
         factory = viewModelFactory {
@@ -103,33 +92,10 @@ fun MineScreen(
     var showPrivacy by remember { mutableStateOf(false) }
     var showServerDialog by remember { mutableStateOf(false) }
     var showLogin by remember { mutableStateOf(false) }
-    val listState = rememberLazyListState()
-    // 我的页 LazyColumn 的滚动目标。
-    //
-    // 历史隐患：这里原来写的是硬编码索引（4 / 5 + favorites.size），
-    // 一旦增删卡片行（例如本版新增「我的歌单」）索引就整体错位，
-    // 表现为点「我喜欢的 / 最近播放」跳到错误位置。
-    // 改为给关键 item 打 key，再用 layoutInfo 反查真实索引，从此不再受行数变化影响。
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
-
-    fun scrollToKey(key: String) {
-        scope.launch {
-            // 目标可能还没被测量（首屏外），先滚到附近再按 key 精确定位
-            repeat(30) {
-                val idx = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index
-                if (idx != null) {
-                    listState.animateScrollToItem(idx)
-                    return@launch
-                }
-                listState.scrollBy(600f)
-            }
-        }
-    }
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            state = listState,
             modifier = Modifier.fillMaxSize().background(colors.background),
             contentPadding = PaddingValues(bottom = 24.dp),
         ) {
@@ -145,12 +111,14 @@ fun MineScreen(
                     ActionCard(
                         icon = Icons.Filled.Favorite,
                         label = stringResource(R.string.liked_songs),
-                        onClick = { scrollToKey("title-liked") },
+                        sub = "${favorites.size} ${stringResource(R.string.songs)}",
+                        onClick = onOpenFavorites,
                     )
                     ActionCard(
                         icon = Icons.Filled.History,
                         label = stringResource(R.string.recent_plays),
-                        onClick = { scrollToKey("title-recent") },
+                        sub = "${history.size} ${stringResource(R.string.songs)}",
+                        onClick = onOpenHistory,
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -307,23 +275,8 @@ fun MineScreen(
             }
         }
 
-        item(key = "title-liked") { SectionTitle(title = stringResource(R.string.liked_songs), more = "${favorites.size} ${stringResource(R.string.songs)}") }
-        if (favorites.isEmpty()) {
-            item(key = "empty-fav") { EmptyText(stringResource(R.string.empty_favorite)) }
-        } else {
-            itemsIndexed(favorites, key = { index, item -> "fav-$index-${item.songId}" }) { index, favorite ->
-                SongRow(song = favorite.toSong(), onClick = { onPlaySong(favorite.toSong()) })
-            }
-        }
-
-        item(key = "title-recent") { SectionTitle(title = stringResource(R.string.recent_plays), more = "${history.size} ${stringResource(R.string.songs)}") }
-        if (history.isEmpty()) {
-            item { EmptyText(stringResource(R.string.empty_history)) }
-        } else {
-            itemsIndexed(history, key = { index, item -> "his-$index-${item.songId}" }) { index, item ->
-                SongRow(song = item.toSong(), onClick = { onPlaySong(item.toSong()) })
-            }
-        }
+        // 「我喜欢的」「最近播放」不再内嵌在本页（首页信息密度太高、页面太长），
+        // 改为上面的入口卡片 → 独立列表页（FavoriteSongsScreen / HistorySongsScreen）。
     }
 
     // 隐私政策查看弹窗（仅确认关闭）
@@ -485,6 +438,7 @@ private fun formatCount(count: Long): String {
 private fun RowScope.ActionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
+    sub: String? = null,
     onClick: () -> Unit = {},
 ) {
     val colors = LocalQMusicColors.current
@@ -500,37 +454,9 @@ private fun RowScope.ActionCard(
         Icon(icon, contentDescription = null, tint = GradientStart, modifier = Modifier.size(26.dp))
         Spacer(Modifier.height(8.dp))
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
+        if (sub != null) {
+            Spacer(Modifier.height(2.dp))
+            Text(sub, fontSize = 10.sp, color = colors.textSecondary)
+        }
     }
 }
-
-@Composable
-private fun EmptyText(text: String) {
-    val colors = LocalQMusicColors.current
-    Text(
-        text,
-        fontSize = 13.sp,
-        color = colors.textSecondary,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 30.dp),
-        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-    )
-}
-
-private fun Favorite.toSong(): Song = Song(
-    id = songId,
-    name = name,
-    arList = listOf(Artist(name = artist)),
-    alAlbum = Album(name = album, picUrl = picUrl),
-    dt = durationMs,
-    source = source,
-    token = token,
-)
-
-private fun History.toSong(): Song = Song(
-    id = songId,
-    name = name,
-    arList = listOf(Artist(name = artist)),
-    alAlbum = Album(name = album, picUrl = picUrl),
-    dt = durationMs,
-    source = source,
-    token = token,
-)
