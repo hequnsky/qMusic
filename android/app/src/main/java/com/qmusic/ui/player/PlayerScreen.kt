@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,6 +81,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import java.util.concurrent.atomic.AtomicLong
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -694,18 +696,22 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
     val listState = rememberLazyListState()
     val current = state.currentLyricIndex
     // 区分「程序自动滚动」与「用户手动拖拽」：
-    // 程序滚动期间不置 userScrolling，否则自动滚动会把自己判成用户操作、
-    // 在 2 秒恢复期内吞掉后续跟随（这正是「歌词不会动」的历史根因之一）。
-    var autoScrolling by remember { mutableStateOf(false) }
+    // isScrollInProgress 对两者都会置位。这里不去维护一个「正在程序滚动」的布尔标志
+    // （协程被取消时标志来不及复位，会把自己的滚动误判成用户操作、白冻 2 秒跟随），
+    // 改成记录「上次程序滚动发生在什么时候」，只有距它足够久才认定是用户拖拽。
+    // 用 AtomicLong 而非 MutableState：避免被 snapshotFlow 订阅、反过来打断 2 秒恢复计时。
+    val lastAutoScrollAt = remember { AtomicLong(0L) }
     var userScrolling by remember { mutableStateOf(false) }
 
     // 用户手动滚动时暂停自动跟随；停止滚动 2 秒后自动恢复
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }
             .collectLatest { scrolling ->
-                if (scrolling && !autoScrolling) {
-                    userScrolling = true
-                } else if (!scrolling && userScrolling) {
+                if (scrolling) {
+                    if (System.currentTimeMillis() - lastAutoScrollAt.get() > 300) {
+                        userScrolling = true
+                    }
+                } else if (userScrolling) {
                     delay(2000)
                     userScrolling = false
                 }
@@ -714,58 +720,68 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
 
     // 当前行变化时把该行滚动到视口正中。
     //
-    // 历史 Bug：「有歌词好像不会动」有三个叠加原因
-    //   1) 原实现只写了上下各半屏的 contentPadding，却调用 animateScrollToItem(cur)，
-    //      该 API 把目标行对齐到「列表内容顶部」，而视口顶部被 contentPadding 占掉半屏，
-    //      于是当前行长期停在屏幕下半部分，看起来像不动；
-    //   2) 自动滚动自身也会把 isScrollInProgress 置为 true → userScrolling 变 true，
-    //      等于把自己的滚动判定为「用户操作」，在 2 秒恢复期内后续跟随全部被吞掉；
-    //   3) currentLyricIndex 为 -1（歌词尚未加载完 / 首句时间戳晚于当前进度）时完全不动。
-    // 修复：区分「程序滚动」与「用户拖拽」；按像素偏移把目标行精确居中。
-    LaunchedEffect(listState) {
-        snapshotFlow { current to userScrolling }
-            .collectLatest { (cur, scrolling) ->
-                if (state.lyrics.isEmpty()) return@collectLatest
-                // 用户正在手动拖动时不打扰，交给「回到当前行」按钮处理
-                if (scrolling) return@collectLatest
-                // 还没唱到第一句（cur == -1，常见于前奏）时把第一句摆到正中：
-                // 否则列表停在「内容起点」这个未滚动状态，首句会偏下半个行高、看着压在屏幕下半部。
-                val target = cur.coerceAtLeast(0)
-                // animateScrollToItem 的 scrollOffset 是「目标行顶边相对列表内容起点」的**绝对**偏移，
-                // 不是「相对当前位置」的增量。列表上下各留半屏 contentPadding，
-                // 内容起点正好落在视口正中，所以只要把顶边再上推「行高的一半」，
-                // 该行中心就精确落在视口正中。
-                //
-                // 旧写法拿 target.offset 与视口中心求差，等于每次都把当前行多推一个「已滚动量」，
-                // 越往后越偏离中心 —— 这也是歌词看着整体偏下的原因之一。
-                //
-                // 行高必须取**目标行自己的**高度（歌词行有没有翻译行、长短是否折行都会差很多，
-                // 用平均行高会差出小半行）。目标行不在视口内时先粗定位到内容起点，等一帧布局再量。
-                var lineHeight = listState.layoutInfo.visibleItemsInfo
-                    .firstOrNull { it.index == target }?.size ?: 0
-                if (lineHeight == 0) {
-                    listState.scrollToItem(target, 0)
-                    withFrameNanos { }
-                    lineHeight = listState.layoutInfo.visibleItemsInfo
-                        .firstOrNull { it.index == target }?.size ?: 0
-                }
-                // 已经在正中附近就别动它，避免每 500ms 一次的无谓滚动
-                val centerOffset = lineHeight / 2
-                val curInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == target }
-                if (curInfo != null) {
-                    val viewportCenter = listState.layoutInfo.viewportSize.height / 2
-                    val distance = curInfo.offset + curInfo.size / 2 - viewportCenter
-                    if (distance > -centerOffset && distance < centerOffset) return@collectLatest
-                }
-                autoScrolling = true
-                // 用瞬时定位而不是动画：current 每 0.5s 变一次，animateScrollToItem 会被
-                // collectLatest 反复取消、列表长期停在半途（表现为当前行迟迟不居中）。
-                listState.scrollToItem(target, centerOffset)
-                // 等一小会儿再复位标志：snapshotFlow 是异步的，立刻复位会让紧随其后的
-                // isScrollInProgress=true 被误判成「用户拖拽」，白白冻结 2 秒跟随。
-                delay(120)
-                autoScrolling = false
-            }
+    // 历史 Bug「歌词不会动 / 整块歌词沉在下半屏 / 停在上一首的位置」由三点叠加造成：
+    //   1) 触发条件失效（最关键）。state 是 collectAsState() 出来的**值**，
+    //      `val current = state.currentLyricIndex` 只是当前这一帧的快照。
+    //      旧实现把它放进 LaunchedEffect(listState) { snapshotFlow { current to ... } }：
+    //      LaunchedEffect 的 key 是 listState（恒定），协程只在首次组合时启动一次，
+    //      snapshotFlow 捕获的 current 永远是**打开歌词页那一瞬间的旧值** →
+    //      之后唱到哪一句都不会再发射，列表就此定格。
+    //      （只有 userScrolling 是 MutableState，写它才能让 snapshotFlow 重新求值。）
+    //      改法：用 LaunchedEffect 的 key 承载 current / 歌 / 歌词条数，值一变就重启协程，
+    //      天然等价于 collectLatest。
+    //   2) 坐标口径混用（本次「歌词都在下方」的根因，详见下方【坐标口径】注释）。
+    //      LazyListItemInfo.offset 是内容坐标，视口顶端在那里是 viewportStartOffset（负值），
+    //      旧实现却拿 viewportSize/2 当中心基准，算出的 delta 恒为负 = 向列表头部回滚；
+    //      而打开歌词页时列表正好在顶部（canScrollBackward=false），scrollBy 消耗 0 → 纹丝不动。
+    //      改法：中心基准改用 viewportStartOffset + viewportSize/2，量出差值用 scrollBy 相对纠正。
+    //   3) 切歌后 listState 不重置：新歌词沿用上一首的滚动位置，停在半空且没有高亮。
+    //      改法：把 song.id / lyrics.size 一并作为 key，切歌即重新定位。
+    LaunchedEffect(current, userScrolling, state.song?.id, state.lyrics.size) {
+        if (state.lyrics.isEmpty()) return@LaunchedEffect
+        // 用户正在手动拖动时不打扰，交给「回到当前行」按钮处理
+        if (userScrolling) return@LaunchedEffect
+        // 还没唱到第一句（current == -1，常见于前奏）时把第一句摆到正中，
+        // 否则列表停在「内容起点」这个未滚动状态、首句会偏下半个行高。
+        val target = current.coerceAtLeast(0)
+
+        // 【坐标口径】这是本段最容易踩错、也是「歌词沉在下方」的真正根因：
+        // LazyListItemInfo.offset 是**内容坐标**，contentPadding 已被平移掉 ——
+        // 实测 contentPadding = 半屏时 viewportStartOffset = -1309（负值！），
+        // 视口顶端在内容坐标里是 -1309，而不是 0。
+        //   · 行的视觉 y       = offset + size/2 - viewportStartOffset
+        //   · 视口中心的内容坐标 = viewportStartOffset + viewportSize/2
+        // 旧实现直接拿 viewportSize/2 当中心基准去减 offset（两种坐标混用），
+        // 算出的是一个**恒为负**的 delta = 向列表头部回滚；
+        // 而打开歌词页时列表正处于顶部（canScrollBackward=false），scrollBy 消耗 0，
+        // 于是歌词永远停在「未滚动」位置：唱到第 3 行时它已落到屏幕约 66% 处，
+        // 越唱越往下，用户看到的就是「歌词都跑到下面去了」。
+        fun centerRef(): Int = listState.layoutInfo.viewportStartOffset +
+            listState.layoutInfo.viewportSize.height / 2
+
+        fun centerOf(index: Int): Int? = listState.layoutInfo.visibleItemsInfo
+            .firstOrNull { it.index == index }
+            ?.let { it.offset + it.size / 2 }
+
+        // 目标行还没被组合进视口时先粗定位到「内容坐标 0」：
+        // 上下 padding 各占半屏，内容坐标 0 恰好就是视口正中，粗定位即居中。
+        if (centerOf(target) == null) {
+            lastAutoScrollAt.set(System.currentTimeMillis())
+            listState.scrollToItem(target, 0)
+            withFrameNanos { }
+        }
+
+        // 相对纠正：目标行中心离视口中心差多少就滚多少。
+        // 最多 4 轮（当前行加粗放大导致行高变化也能自动修回来）。
+        repeat(4) {
+            val c = centerOf(target) ?: return@repeat
+            val delta = c - centerRef()
+            if (kotlin.math.abs(delta) <= 2) return@repeat
+            lastAutoScrollAt.set(System.currentTimeMillis())
+            listState.scrollBy(delta.toFloat())
+            // 等一帧让 LazyColumn 重新测量，下一轮才能读到纠正后的真实位置
+            withFrameNanos { }
+        }
     }
 
     // navigationBarsPadding：整块歌词连同「半屏留白」的基准高度一起抬到系统导航栏之上，
