@@ -2,6 +2,7 @@ package com.qmusic.ui.mine
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -81,6 +83,7 @@ fun MineScreen(
     onPlaySong: (Song) -> Unit,
     onOpenLocalMusic: () -> Unit = {},
     onOpenDownloads: () -> Unit = {},
+    onOpenMyPlaylists: () -> Unit = {},
 ) {
     val viewModel: MineViewModel = viewModel(
         factory = viewModelFactory {
@@ -101,11 +104,28 @@ fun MineScreen(
     var showServerDialog by remember { mutableStateOf(false) }
     var showLogin by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    // 我的页 LazyColumn 的滚动目标。
+    //
+    // 历史隐患：这里原来写的是硬编码索引（4 / 5 + favorites.size），
+    // 一旦增删卡片行（例如本版新增「我的歌单」）索引就整体错位，
+    // 表现为点「我喜欢的 / 最近播放」跳到错误位置。
+    // 改为给关键 item 打 key，再用 layoutInfo 反查真实索引，从此不再受行数变化影响。
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // 我的页 LazyColumn item 索引：0 header / 1 ActionCard / 2 深色模式 / 3 隐私政策 / 4 我喜欢的标题 / 5.. 收藏 / ... 最近播放标题
-    val recentTitleIndex = 5 + (if (favorites.isEmpty()) 1 else favorites.size)
+    fun scrollToKey(key: String) {
+        scope.launch {
+            // 目标可能还没被测量（首屏外），先滚到附近再按 key 精确定位
+            repeat(30) {
+                val idx = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index
+                if (idx != null) {
+                    listState.animateScrollToItem(idx)
+                    return@launch
+                }
+                listState.scrollBy(600f)
+            }
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -125,12 +145,12 @@ fun MineScreen(
                     ActionCard(
                         icon = Icons.Filled.Favorite,
                         label = stringResource(R.string.liked_songs),
-                        onClick = { scope.launch { listState.animateScrollToItem(4) } },
+                        onClick = { scrollToKey("title-liked") },
                     )
                     ActionCard(
                         icon = Icons.Filled.History,
                         label = stringResource(R.string.recent_plays),
-                        onClick = { scope.launch { listState.animateScrollToItem(recentTitleIndex) } },
+                        onClick = { scrollToKey("title-recent") },
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -144,6 +164,15 @@ fun MineScreen(
                         label = stringResource(R.string.my_downloads),
                         onClick = onOpenDownloads,
                     )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ActionCard(
+                        icon = Icons.Filled.LibraryMusic,
+                        label = "我的歌单",
+                        onClick = onOpenMyPlaylists,
+                    )
+                    // 占位，保持 2 列网格的最后一行完整
+                    Box(Modifier.weight(1f))
                 }
             }
         }
@@ -278,16 +307,16 @@ fun MineScreen(
             }
         }
 
-        item { SectionTitle(title = stringResource(R.string.liked_songs), more = "${favorites.size} ${stringResource(R.string.songs)}") }
+        item(key = "title-liked") { SectionTitle(title = stringResource(R.string.liked_songs), more = "${favorites.size} ${stringResource(R.string.songs)}") }
         if (favorites.isEmpty()) {
-            item { EmptyText(stringResource(R.string.empty_favorite)) }
+            item(key = "empty-fav") { EmptyText(stringResource(R.string.empty_favorite)) }
         } else {
             itemsIndexed(favorites, key = { index, item -> "fav-$index-${item.songId}" }) { index, favorite ->
                 SongRow(song = favorite.toSong(), onClick = { onPlaySong(favorite.toSong()) })
             }
         }
 
-        item { SectionTitle(title = stringResource(R.string.recent_plays), more = "${history.size} ${stringResource(R.string.songs)}") }
+        item(key = "title-recent") { SectionTitle(title = stringResource(R.string.recent_plays), more = "${history.size} ${stringResource(R.string.songs)}") }
         if (history.isEmpty()) {
             item { EmptyText(stringResource(R.string.empty_history)) }
         } else {

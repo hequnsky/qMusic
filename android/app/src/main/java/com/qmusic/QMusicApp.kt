@@ -25,6 +25,7 @@ class QMusicApp : Application() {
             api = ApiClient.service,
             favoriteDao = database.favoriteDao(),
             historyDao = database.historyDao(),
+            playlistDao = database.playlistDao(),
         )
         playerController = PlayerController(this, repository)
     }

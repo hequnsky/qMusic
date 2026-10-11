@@ -5,7 +5,7 @@
 
 | 当前版本 | 更新日志 | APK 产物名 |
 | --- | --- | --- |
-| **1.02** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.02-release.apk` |
+| **1.03** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.03-release.apk` |
 
 ![原型 - 发现页](prototype/screenshots/discover.png)
 
@@ -115,7 +115,7 @@ open prototype/index.html          # macOS
 # 3) 打包 Android APK（需要 JDK17 + Android SDK）
 cd android
 ./build-apk.sh                 # 一键：版本号 +0.01 → 编译 → 归档到 dist/
-# 产物：android/dist/qMusic-1.02-release.apk
+# 产物：android/dist/qMusic-1.03-release.apk
 ```
 
 > 没有编译多音源服务也能正常使用：网关会自动降级，客户端只显示网易云一个音源。

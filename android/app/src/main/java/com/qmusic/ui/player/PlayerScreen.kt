@@ -3,8 +3,11 @@ package com.qmusic.ui.player
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,8 +48,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,6 +55,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -67,6 +69,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +90,7 @@ import com.qmusic.player.PlayerController
 import com.qmusic.player.PlayerUiState
 import com.qmusic.ui.components.SongCover
 import com.qmusic.ui.components.formatDuration
+import com.qmusic.ui.playlist.AddToPlaylistSheet
 import com.qmusic.ui.theme.Accent
 import com.qmusic.ui.theme.Dark
 import com.qmusic.ui.theme.GradientEnd
@@ -95,6 +99,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import androidx.compose.ui.input.pointer.pointerInput
 
 @Composable
 fun PlayerScreen(
@@ -102,6 +107,8 @@ fun PlayerScreen(
     repository: MusicRepository,
     onClose: () -> Unit,
     onOpenComment: (Song) -> Unit = {},
+    onOpenDownloads: () -> Unit = {},
+    onManagePlaylists: () -> Unit = {},
 ) {
     val viewModel: PlayerViewModel = viewModel(
         factory = viewModelFactory {
@@ -113,6 +120,7 @@ fun PlayerScreen(
     var showQueue by rememberSaveable { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
     var showTimerDialog by remember { mutableStateOf(false) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
     var timerJob by remember { mutableStateOf<Job?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -123,6 +131,7 @@ fun PlayerScreen(
             showLyrics -> showLyrics = false
             showQueue -> showQueue = false
             showMore -> showMore = false
+            showAddToPlaylist -> showAddToPlaylist = false
             else -> onClose()
         }
     }
@@ -132,7 +141,20 @@ fun PlayerScreen(
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Dark).navigationBarsPadding()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Dark)
+            .navigationBarsPadding()
+            // 关键：播放页是覆盖在主页之上的浮层。必须在此消费掉所有触摸事件，
+            // 否则点击标题/歌手这类「无 handler」区域时，Compose 命中测试会穿透到
+            // 下层主页的歌曲行，触发 onPlay 重新播放当前歌曲（表现为「点标题会重复播放」）。
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+            ),
+    ) {
         // 背景渐变
         Box(
             Modifier.fillMaxSize().background(
@@ -249,17 +271,17 @@ fun PlayerScreen(
             ) {
                 val duration = state.durationMs.coerceAtLeast(1L)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(formatDuration(state.positionMs), fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
-                    Slider(
-                        value = state.positionMs.toFloat().coerceIn(0f, duration.toFloat()),
-                        onValueChange = { viewModel.seekTo(it.toLong()) },
-                        valueRange = 0f..duration.toFloat(),
-                        modifier = Modifier.weight(1f).height(24.dp).padding(horizontal = 4.dp),
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = GradientStart,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.15f),
-                        ),
+                    Text(
+                        formatDuration(state.positionMs),
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.5f),
+                    )
+                    // 自绘细进度条：Material3 Slider 的轨道默认太粗，这里用 3dp 细线 + 小圆点
+                    ThinProgressBar(
+                        positionMs = state.positionMs,
+                        durationMs = duration,
+                        onSeek = { viewModel.seekTo(it) },
+                        modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
                     )
                     Text(formatDuration(duration), fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
                 }
@@ -312,7 +334,7 @@ fun PlayerScreen(
                 }
             }
 
-            // 底部操作：评论（真实）/ 下载（暂未实现）/ 分享（系统分享）/ 更多（弹出菜单）
+            // 底部操作：评论 / 下载当前歌曲 / 歌单 / 已下载 / 更多
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 28.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -349,20 +371,10 @@ fun PlayerScreen(
                         }
                     }
                 })
-                BottomActionItem(
-                    label = "分享",
-                    onClick = {
-                        val song = state.song ?: return@BottomActionItem
-                        val shareText = context.getString(R.string.share_text, song.name, song.artistName)
-                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, shareText)
-                        }
-                        context.startActivity(
-                            Intent.createChooser(sendIntent, context.getString(R.string.share)),
-                        )
-                    },
-                )
+                BottomActionItem(label = "歌单", onClick = {
+                    if (state.song != null) showAddToPlaylist = true
+                })
+                BottomActionItem(label = "已下载", onClick = onOpenDownloads)
                 BottomActionItem(label = "更多", onClick = { showMore = true })
             }
         }
@@ -395,9 +407,23 @@ fun PlayerScreen(
             )
         }
 
+        // 「添加到歌单」底部弹窗
+        state.song?.let { currentSong ->
+            if (showAddToPlaylist) {
+                AddToPlaylistSheet(
+                    repository = repository,
+                    song = currentSong,
+                    onDismiss = { showAddToPlaylist = false },
+                    onManagePlaylists = {
+                        showAddToPlaylist = false
+                        onManagePlaylists()
+                    },
+                )
+            }
+        }
+
         // 定时关闭对话框
-        if (showTimerDialog) {
-            AlertDialog(
+        if (showTimerDialog) {            AlertDialog(
                 onDismissRequest = { showTimerDialog = false },
                 title = { Text(stringResource(R.string.timer_off)) },
                 text = {
@@ -621,30 +647,57 @@ private fun RotatingDisc(coverUrl: String?, isPlaying: Boolean) {
 @Composable
 private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
     val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
     val current = state.currentLyricIndex
+    // 区分「程序自动滚动」与「用户手动拖拽」：
+    // 程序滚动期间不置 userScrolling，否则自动滚动会把自己判成用户操作、
+    // 在 2 秒恢复期内吞掉后续跟随（这正是「歌词不会动」的历史根因之一）。
+    var autoScrolling by remember { mutableStateOf(false) }
     var userScrolling by remember { mutableStateOf(false) }
 
     // 用户手动滚动时暂停自动跟随；停止滚动 2 秒后自动恢复
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }
             .collectLatest { scrolling ->
-                if (scrolling) {
+                if (scrolling && !autoScrolling) {
                     userScrolling = true
-                } else {
+                } else if (!scrolling && userScrolling) {
                     delay(2000)
                     userScrolling = false
                 }
             }
     }
 
-    // 当前行变化时自动滚动居中（用户拖动期间不打扰）
+    // 当前行变化时把该行滚动到视口正中。
+    //
+    // 历史 Bug：「有歌词好像不会动」有三个叠加原因
+    //   1) 原实现只写了上下各半屏的 contentPadding，却调用 animateScrollToItem(cur)，
+    //      该 API 把目标行对齐到「列表内容顶部」，而视口顶部被 contentPadding 占掉半屏，
+    //      于是当前行长期停在屏幕下半部分，看起来像不动；
+    //   2) 自动滚动自身也会把 isScrollInProgress 置为 true → userScrolling 变 true，
+    //      等于把自己的滚动判定为「用户操作」，在 2 秒恢复期内后续跟随全部被吞掉；
+    //   3) currentLyricIndex 为 -1（歌词尚未加载完 / 首句时间戳晚于当前进度）时完全不动。
+    // 修复：区分「程序滚动」与「用户拖拽」；按像素偏移把目标行精确居中。
     LaunchedEffect(listState) {
-        snapshotFlow { Triple(current, userScrolling, state.lyrics.size) }
-            .collectLatest { (cur, scrolling, lyricCount) ->
-                if (cur >= 0 && !scrolling && lyricCount > 0) {
-                    listState.animateScrollToItem(cur.coerceAtLeast(0))
+        snapshotFlow { current to userScrolling }
+            .collectLatest { (cur, scrolling) ->
+                if (cur < 0 || state.lyrics.isEmpty()) return@collectLatest
+                // 用户正在手动拖动时不打扰，交给「回到当前行」按钮处理
+                if (scrolling) return@collectLatest
+                // 让列表先完成一次测量，否则 visibleItemsInfo 为空、算不出行高
+                if (listState.layoutInfo.visibleItemsInfo.isEmpty()) {
+                    listState.scrollToItem(0, 0)
                 }
+                // 目标行若已在视口内，用真实行高算居中偏移；否则直接对齐到内容顶部
+                val target = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == cur }
+                val offset = if (target != null) {
+                    val viewportCenter = listState.layoutInfo.viewportSize.height / 2
+                    target.offset + target.size / 2 - viewportCenter
+                } else {
+                    0
+                }
+                autoScrolling = true
+                listState.animateScrollToItem(cur, offset)
+                autoScrolling = false
             }
     }
 
@@ -718,10 +771,8 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
                     .clip(RoundedCornerShape(16.dp))
                     .background(Color.White.copy(alpha = 0.15f))
                     .clickable {
+                        // 放开跟随开关，snapshotFlow 会立即把当前行重新居中
                         userScrolling = false
-                        if (current >= 0) {
-                            coroutineScope.launch { listState.animateScrollToItem(current) }
-                        }
                     }
                     .padding(horizontal = 14.dp, vertical = 7.dp),
             )
@@ -729,9 +780,87 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
     }
 }
 
+/**
+ * 细进度条（问题 3：Material3 Slider 轨道太粗）。
+ *
+ * 设计：视觉轨道只有 3dp，滑块 8dp，但保留 24dp 的可点击热区，
+ * 既保证观感纤细又不牺牲易点性；支持点击跳转与拖动擦洗。
+ */
 @Composable
-private fun BottomActionItem(label: String, onClick: () -> Unit) {
-    Column(
+private fun ThinProgressBar(
+    positionMs: Long,
+    durationMs: Long,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val fraction = if (durationMs > 0) {
+        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    var widthPx by remember { mutableIntStateOf(1) }
+    var dragging by remember { mutableStateOf(false) }
+
+    fun seekToX(x: Float) {
+        if (widthPx <= 0) return
+        val ratio = (x / widthPx).coerceIn(0f, 1f)
+        onSeek((ratio * durationMs).toLong())
+    }
+
+    Box(
+        modifier = modifier
+            .height(24.dp)
+            .onSizeChanged { widthPx = it.width }
+            .pointerInput(durationMs) {
+                detectTapGestures { offset -> seekToX(offset.x) }
+            }
+            .pointerInput(durationMs) {
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        dragging = true
+                        seekToX(offset.x)
+                    },
+                    onDragEnd = { dragging = false },
+                    onDragCancel = { dragging = false },
+                ) { change, _ -> seekToX(change.position.x) }
+            },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val cy = size.height / 2f
+            val trackH = 3.dp.toPx()
+            val startX = if (dragging) 4.dp.toPx() else 4.dp.toPx()
+            val endX = size.width - startX
+            val usable = (endX - startX).coerceAtLeast(0f)
+            // 底轨
+            drawLine(
+                color = Color.White.copy(alpha = 0.18f),
+                start = androidx.compose.ui.geometry.Offset(startX, cy),
+                end = androidx.compose.ui.geometry.Offset(endX, cy),
+                strokeWidth = trackH,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round,
+            )
+            // 已播放进度
+            drawLine(
+                brush = Brush.horizontalGradient(listOf(GradientStart, GradientEnd)),
+                start = androidx.compose.ui.geometry.Offset(startX, cy),
+                end = androidx.compose.ui.geometry.Offset(startX + usable * fraction, cy),
+                strokeWidth = trackH,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round,
+            )
+            // 滑块：仅拖动时放大，平时只显示小圆点
+            val thumbR = if (dragging) 5.5.dp.toPx() else 3.5.dp.toPx()
+            drawCircle(
+                color = Color.White,
+                radius = thumbR,
+                center = androidx.compose.ui.geometry.Offset(startX + usable * fraction, cy),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomActionItem(label: String, onClick: () -> Unit) {    Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))

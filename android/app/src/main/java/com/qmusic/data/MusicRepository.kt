@@ -2,9 +2,14 @@ package com.qmusic.data
 
 import com.qmusic.data.local.FavoriteDao
 import com.qmusic.data.local.HistoryDao
+import com.qmusic.data.local.PlaylistDao
 import com.qmusic.data.local.entity.Favorite
 import com.qmusic.data.local.entity.History
+import com.qmusic.data.local.entity.LocalPlaylist
+import com.qmusic.data.local.entity.PlaylistSong
+import com.qmusic.data.local.entity.PlaylistWithCount
 import com.qmusic.data.model.Album
+import com.qmusic.data.model.Artist
 import com.qmusic.data.model.Comment
 import com.qmusic.data.model.Toplist
 import com.qmusic.data.model.UserDetailProfile
@@ -23,6 +28,7 @@ class MusicRepository(
     private val api: MusicApiService,
     private val favoriteDao: FavoriteDao,
     private val historyDao: HistoryDao,
+    private val playlistDao: PlaylistDao,
 ) {
 
     // ---------- 远程 ----------
@@ -226,4 +232,71 @@ class MusicRepository(
             ),
         )
     }
+
+    // ---------- 本地歌单 ----------
+
+    /** 歌单列表（含歌曲数），按创建时间倒序 */
+    fun observePlaylists(): Flow<List<PlaylistWithCount>> = playlistDao.observeAllWithCount()
+
+    fun observePlaylistSongs(playlistId: Long): Flow<List<PlaylistSong>> =
+        playlistDao.observeSongs(playlistId)
+
+    /** 该歌曲已存在于哪些歌单（用于「添加到歌单」弹窗勾选状态） */
+    suspend fun playlistIdsOfSong(songId: Long): List<Long> = playlistDao.playlistIdsOfSong(songId)
+
+    /** 新建歌单，返回新歌单 id */
+    suspend fun createPlaylist(name: String, coverUrl: String? = null): Long =
+        playlistDao.insertPlaylist(LocalPlaylist(name = name.trim(), coverUrl = coverUrl))
+
+    suspend fun renamePlaylist(id: Long, name: String) =
+        playlistDao.renamePlaylist(id, name.trim())
+
+    /** 删除歌单（关联歌曲由外键级联删除） */
+    suspend fun deletePlaylist(id: Long) = playlistDao.deletePlaylist(id)
+
+    /**
+     * 把歌曲加入歌单。
+     * 重复加入是幂等的（复合主键 + IGNORE），返回是否真的新增。
+     */
+    suspend fun addSongToPlaylist(playlistId: Long, song: Song): Boolean {
+        if (playlistDao.containsSong(playlistId, song.id)) return false
+        playlistDao.addSong(
+            PlaylistSong(
+                playlistId = playlistId,
+                songId = song.id,
+                name = song.name,
+                artist = song.artistName,
+                album = song.albumName,
+                picUrl = song.coverUrl,
+                durationMs = song.durationMs,
+                source = song.source,
+                token = song.token,
+            ),
+        )
+        return true
+    }
+
+    suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long) =
+        playlistDao.removeSong(playlistId, songId)
+
+    /** 播放歌单：把 PlaylistSong 还原成可播放的 Song（保留 source/token 以解析播放地址） */
+    fun playlistSongsToSongs(songs: List<PlaylistSong>): List<Song> = songs.map { it.toSong() }
+
+    /** 新建歌单并立即加入当前歌曲，一步完成 */
+    suspend fun createPlaylistWithSong(name: String, song: Song): Long {
+        val id = createPlaylist(name, song.coverUrl)
+        addSongToPlaylist(id, song)
+        return id
+    }
 }
+
+/** PlaylistSong -> Song */
+fun PlaylistSong.toSong(): Song = Song(
+    id = songId,
+    name = name,
+    artists = listOf(Artist(name = artist)),
+    album = Album(name = album, picUrl = picUrl),
+    dt = durationMs,
+    source = source,
+    token = token,
+)

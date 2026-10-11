@@ -1,5 +1,6 @@
 package com.qmusic.ui.navigation
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.qmusic.QMusicApp
+import com.qmusic.data.local.entity.LocalPlaylist
 import com.qmusic.data.model.Song
 import com.qmusic.ui.category.CategoryMusicScreen
 import com.qmusic.ui.category.CategorySpec
@@ -30,7 +32,9 @@ import com.qmusic.ui.mine.MineScreen
 import com.qmusic.ui.player.PlayerScreen
 import com.qmusic.ui.playlist.HotPlaylistScreen
 import com.qmusic.ui.playlist.LocalMusicScreen
+import com.qmusic.ui.playlist.MyPlaylistsScreen
 import com.qmusic.ui.playlist.PlaylistDetailScreen
+import com.qmusic.ui.playlist.PlaylistSongsScreen
 import com.qmusic.ui.search.SearchScreen
 import com.qmusic.ui.toplist.ToplistScreen
 
@@ -51,6 +55,9 @@ fun MainScreen(
     var toplistOpen by rememberSaveable { mutableStateOf(false) }
     var localMusicOpen by rememberSaveable { mutableStateOf(false) }
     var downloadOpen by rememberSaveable { mutableStateOf(false) }
+    var myPlaylistsOpen by rememberSaveable { mutableStateOf(false) }
+    // 打开的本地歌单（null = 未打开），直接存歌单对象，详情页才能显示真实歌单名
+    var openedLocalPlaylist by remember { mutableStateOf<LocalPlaylist?>(null) }
     var category by remember { mutableStateOf<CategorySpec?>(null) }
     var commentSong by remember { mutableStateOf<Song?>(null) }
     val playerState by playerController.uiState.collectAsState()
@@ -58,7 +65,24 @@ fun MainScreen(
     // 系统返回键：非发现页时先回到发现页。
     // 覆盖层（播放页/评论/歌单/搜索建议等）各自的 BackHandler 优先级更高，会先被处理；
     // 这里是兜底，保证任何页面按返回最终都回到发现主页（主页再按返回才退出 App）。
-    BackHandler(enabled = selectedTab != 0) { selectedTab = 0 }
+    //
+    // 问题 6：原实现 `BackHandler(enabled = selectedTab != 0)` 在主页（selectedTab==0）时
+    // 是「禁用」状态，系统回退会走 Activity 默认的退出动画，Compose 树先做一次
+    // 无意义的重组再退出 —— 观感就是「按返回闪一下」。
+    // 修复：主页也接管返回键，直接 finish()，跳过退出动画与多余重组。
+    val activity = context as? Activity
+    BackHandler {
+        when {
+            selectedTab != 0 -> selectedTab = 0
+            playerState.song != null -> Unit // 主页有 MiniPlayerBar 时不退出，避免误触
+            else -> {
+                activity?.finish()
+                // 去掉退出转场动画，消除那一下闪烁
+                @Suppress("DEPRECATION")
+                activity?.overridePendingTransition(0, 0)
+            }
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -106,6 +130,7 @@ fun MainScreen(
                     },
                     onOpenLocalMusic = { localMusicOpen = true },
                     onOpenDownloads = { downloadOpen = true },
+                    onOpenMyPlaylists = { myPlaylistsOpen = true },
                 )
                 2 -> SearchScreen(
                     repository = app.repository,
@@ -196,12 +221,47 @@ fun MainScreen(
         )
     }
 
+    // 我的歌单（本地歌单管理：创建/重命名/删除）
+    if (myPlaylistsOpen) {
+        MyPlaylistsScreen(
+            repository = app.repository,
+            onBack = { myPlaylistsOpen = false },
+            onOpenPlaylist = { playlist ->
+                myPlaylistsOpen = false
+                openedLocalPlaylist = playlist
+            },
+        )
+    }
+
+    // 本地歌单详情
+    openedLocalPlaylist?.let { playlist ->
+        PlaylistSongsScreen(
+            repository = app.repository,
+            playlistId = playlist.id,
+            playlistName = playlist.name,
+            onBack = { openedLocalPlaylist = null },
+            onPlaySongs = { songs, index ->
+                playerController.play(songs, index)
+                openedLocalPlaylist = null
+                playerOpen = true
+            },
+        )
+    }
+
     if (playerOpen) {
         PlayerScreen(
             playerController = playerController,
             repository = app.repository,
             onClose = { playerOpen = false },
             onOpenComment = { song -> commentSong = song },
+            onOpenDownloads = {
+                playerOpen = false
+                downloadOpen = true
+            },
+            onManagePlaylists = {
+                playerOpen = false
+                myPlaylistsOpen = true
+            },
         )
     }
 
