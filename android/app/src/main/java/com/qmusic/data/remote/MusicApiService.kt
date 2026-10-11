@@ -2,6 +2,10 @@ package com.qmusic.data.remote
 
 import com.qmusic.data.model.CommentResponse
 import com.qmusic.data.model.LyricResponse
+import com.qmusic.data.model.MultiLyricResponse
+import com.qmusic.data.model.MultiSearchResponse
+import com.qmusic.data.model.MultiSongUrlResponse
+import com.qmusic.data.model.MultiSourcesResponse
 import com.qmusic.data.model.PersonalizedResponse
 import com.qmusic.data.model.PlaylistDetailResponse
 import com.qmusic.data.model.QrCheckResponse
@@ -10,6 +14,7 @@ import com.qmusic.data.model.QrKeyResponse
 import com.qmusic.data.model.SearchHotResponse
 import com.qmusic.data.model.SearchResponse
 import com.qmusic.data.model.SearchSuggestResponse
+import com.qmusic.data.model.SongDetailResponse
 import com.qmusic.data.model.SongUrlResponse
 import com.qmusic.data.model.ToplistResponse
 import com.qmusic.data.model.TopPlaylistResponse
@@ -39,6 +44,13 @@ interface MusicApiService {
     /** 搜索建议 */
     @GET("search/suggest")
     suspend fun searchSuggest(@Query("keywords") keywords: String): SearchSuggestResponse
+
+    /**
+     * 歌曲详情（批量）。
+     * 用于回填「搜索 / 搜索建议」结果里缺失的专辑封面（这两个接口只返回 picId，不返回 picUrl）。
+     */
+    @GET("song/detail")
+    suspend fun songDetail(@Query("ids") ids: String): SongDetailResponse
 
     /** 排行榜列表 */
     @GET("toplist")
@@ -112,4 +124,26 @@ interface MusicApiService {
     /** 歌单详情 */
     @GET("playlist/detail")
     suspend fun playlistDetail(@Query("id") id: Long): PlaylistDetailResponse
+
+    // ---------------- 多音源（music-lib 聚合层，/multi/*） ----------------
+
+    /** 可用音源列表（服务端多音源是否在线） */
+    @GET("multi/sources")
+    suspend fun multiSources(): MultiSourcesResponse
+
+    /** 按音源搜索歌曲 */
+    @GET("multi/search")
+    suspend fun multiSearch(
+        @Query("source") source: String,
+        @Query("keyword") keyword: String,
+        @Query("limit") limit: Int = 30,
+    ): MultiSearchResponse
+
+    /** 多音源播放地址（token 由搜索接口返回） */
+    @GET("multi/song/url")
+    suspend fun multiSongUrl(@Query("s") token: String): MultiSongUrlResponse
+
+    /** 多音源歌词 */
+    @GET("multi/lyric")
+    suspend fun multiLyric(@Query("s") token: String): MultiLyricResponse
 }

@@ -37,6 +37,10 @@ data class Song(
     @SerialName("dt") val dt: Long? = null,
     /** 本地音乐文件路径（MediaStore 扫描），非空时表示本地歌曲 */
     val localPath: String? = null,
+    /** 音源标识：netease / qq / kugou / kuwo / migu / qianqian / soda / bilibili / apple；local 表示本地歌曲 */
+    val source: String = SOURCE_NETEASE,
+    /** 多音源令牌：完整歌曲元数据的 base64 载荷，播放/歌词请求时原样回传给服务端 */
+    val token: String? = null,
 ) {
     val artistList: List<Artist> get() = if (artists.isNotEmpty()) artists else arList
     val albumObj: Album? get() = album ?: alAlbum
@@ -44,7 +48,105 @@ data class Song(
     val albumName: String get() = albumObj?.name ?: "未知专辑"
     val coverUrl: String? get() = albumObj?.picUrl
     val durationMs: Long get() = dt ?: duration ?: 0
+    val isLocal: Boolean get() = !localPath.isNullOrBlank()
+
+    companion object {
+        const val SOURCE_NETEASE = "netease"
+        const val SOURCE_LOCAL = "local"
+    }
 }
+
+/**
+ * 由「音源 + 平台原始 id」派生出稳定的 Long 主键。
+ * 多音源的 id 是字符串（如 QQ 的 songmid、B站的 BV 号），
+ * 而收藏/历史表的主键是 Long，因此做一次 FNV-1a 64 位哈希，
+ * 保证同一首歌每次都得到相同的主键、且不同音源不会互相撞车。
+ */
+internal fun stableSongId(source: String, rawId: String): Long {
+    var h = -3750763034362895579L // FNV-1a 64 offset basis
+    for (ch in "$source:$rawId") {
+        h = h xor ch.code.toLong()
+        h *= 1099511628211L
+    }
+    return if (h == 0L) 1L else h
+}
+
+/** 多音源列表中的一项 */
+@Serializable
+data class MusicSource(
+    val id: String = "",
+    val name: String = "",
+    val requiresProxy: Boolean = false,
+)
+
+/** 多音源可用性 + 音源列表 */
+@Serializable
+data class MultiSourcesResponse(
+    val ok: Boolean = false,
+    val available: Boolean = false,
+    val sources: List<MusicSource> = emptyList(),
+    val error: String? = null,
+)
+
+/** 多音源歌曲（服务端统一结构） */
+@Serializable
+data class MultiSong(
+    val id: String = "",
+    val name: String = "",
+    val artist: String = "",
+    val album: String = "",
+    val duration: Int = 0,
+    val cover: String? = null,
+    val source: String = Song.SOURCE_NETEASE,
+    val ext: String? = null,
+    val link: String? = null,
+    val token: String? = null,
+) {
+    fun toSong(): Song = Song(
+        id = stableSongId(source.ifBlank { Song.SOURCE_NETEASE }, id),
+        name = name,
+        artists = listOf(Artist(name = artist)),
+        album = Album(name = album, picUrl = cover),
+        dt = duration * 1000L,
+        source = source.ifBlank { Song.SOURCE_NETEASE },
+        token = token,
+    )
+}
+
+@Serializable
+data class MultiSearchResponse(
+    val ok: Boolean = false,
+    val source: String = Song.SOURCE_NETEASE,
+    val songs: List<MultiSong> = emptyList(),
+    val error: String? = null,
+)
+
+@Serializable
+data class MultiSongUrlResponse(
+    val ok: Boolean = false,
+    val url: String? = null,
+    val proxied: Boolean = false,
+    val error: String? = null,
+)
+
+@Serializable
+data class MultiLyricResponse(
+    val ok: Boolean = false,
+    val lrc: String = "",
+    val error: String? = null,
+)
+
+/**
+ * 歌曲详情响应。
+ * 用途：网易云「搜索」「搜索建议」接口返回的歌曲只有 album.picId（数字），
+ * 没有 picUrl，导致播放页/通知栏/桌面小组件拿不到封面。
+ * 通过 song/detail 批量查询可拿到 al.picUrl，用于回填封面。
+ */
+@Serializable
+data class SongDetailResponse(
+    val songs: List<Song> = emptyList(),
+    val code: Int = 0,
+)
 
 /** 搜索响应 */
 @Serializable

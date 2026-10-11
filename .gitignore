@@ -31,3 +31,7 @@ Thumbs.db
 prototype/test_local.wav
 
 android/.kotlin/
+
+# ---------- 测试临时产物 ----------
+android/testing/dumps/
+android/.build-version

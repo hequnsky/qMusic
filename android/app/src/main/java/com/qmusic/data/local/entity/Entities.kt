@@ -12,6 +12,10 @@ data class Favorite(
     val album: String,
     val picUrl: String?,
     val durationMs: Long,
+    /** 音源标识（netease/qq/kugou/.../local），v2 新增 */
+    val source: String = "netease",
+    /** 多音源令牌，v2 新增；非网易云歌曲靠它才能重新解析播放地址 */
+    val token: String? = null,
     val addedAt: Long = System.currentTimeMillis(),
 )
 
@@ -24,5 +28,9 @@ data class History(
     val album: String,
     val picUrl: String?,
     val durationMs: Long,
+    /** 音源标识，v2 新增 */
+    val source: String = "netease",
+    /** 多音源令牌，v2 新增 */
+    val token: String? = null,
     val playedAt: Long = System.currentTimeMillis(),
 )

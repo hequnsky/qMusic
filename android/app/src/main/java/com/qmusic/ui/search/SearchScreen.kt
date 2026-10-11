@@ -51,6 +51,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
+import com.qmusic.data.model.MusicSource
 import com.qmusic.data.model.Song
 import com.qmusic.ui.components.SectionTitle
 import com.qmusic.ui.components.SongCover
@@ -77,6 +78,8 @@ fun SearchScreen(
     val results by viewModel.results.collectAsState()
     val searching by viewModel.searching.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
+    val sources by viewModel.sources.collectAsState()
+    val selectedSource by viewModel.selectedSource.collectAsState()
 
     Column(Modifier.fillMaxSize().background(colors.background)) {
         // 搜索框
@@ -123,6 +126,15 @@ fun SearchScreen(
             }
         }
 
+        // 音源切换（仅当服务端多音源在线时出现；离线则完全隐藏，行为与以前一致）
+        if (sources.size > 1) {
+            SourceChipRow(
+                sources = sources,
+                selected = selectedSource,
+                onSelect = { viewModel.selectSource(it) },
+            )
+        }
+
         if (query.isBlank()) {
             SearchHome(viewModel = viewModel)
         } else {
@@ -137,6 +149,50 @@ fun SearchScreen(
                     results = results,
                     searching = searching,
                     onPlaySong = onPlaySong,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 音源切换条：横滑选择搜索来源（网易云 / QQ / 酷狗 / 酷我 / 咪咕 / 汽水 / B站…）。
+ * 音源列表由服务端 /multi/sources 返回；服务离线时整个切换条不渲染。
+ */
+@Composable
+private fun SourceChipRow(
+    sources: List<MusicSource>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    val colors = LocalQMusicColors.current
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        item {
+            Text(
+                stringResource(R.string.music_source),
+                fontSize = 11.sp,
+                color = colors.textTertiary,
+            )
+        }
+        items(sources, key = { it.id }) { source ->
+            val active = source.id == selected
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (active) GradientStart else colors.card)
+                    .clickable { onSelect(source.id) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    source.name,
+                    fontSize = 12.sp,
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                    color = if (active) Color.White else colors.textSecondary,
                 )
             }
         }

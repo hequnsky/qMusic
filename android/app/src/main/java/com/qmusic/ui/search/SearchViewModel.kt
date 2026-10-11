@@ -1,10 +1,12 @@
 package com.qmusic.ui.search
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.local.SearchHistoryStore
+import com.qmusic.data.model.MusicSource
 import com.qmusic.data.model.Song
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -17,6 +19,8 @@ class SearchViewModel(
     private val repository: MusicRepository,
     application: Application,
 ) : AndroidViewModel(application) {
+
+    private val prefs = application.getSharedPreferences("qmusic_search", Context.MODE_PRIVATE)
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -36,11 +40,47 @@ class SearchViewModel(
     private val _hotKeywords = MutableStateFlow<List<String>>(emptyList())
     val hotKeywords: StateFlow<List<String>> = _hotKeywords.asStateFlow()
 
+    /** 服务端可用的音源（多音源服务不在线时为空，界面自动隐藏切换栏） */
+    private val _sources = MutableStateFlow<List<MusicSource>>(emptyList())
+    val sources: StateFlow<List<MusicSource>> = _sources.asStateFlow()
+
+    /** 当前音源（持久化，默认网易云，保证老用户行为不变） */
+    private val _selectedSource = MutableStateFlow(
+        prefs.getString(KEY_SOURCE, Song.SOURCE_NETEASE) ?: Song.SOURCE_NETEASE,
+    )
+    val selectedSource: StateFlow<String> = _selectedSource.asStateFlow()
+
     private var searchJob: Job? = null
 
     init {
         _history.value = SearchHistoryStore.get(getApplication())
         loadHotKeywords()
+        loadSources()
+    }
+
+    /** 拉取可用音源列表（失败静默降级为「只有网易云」） */
+    fun loadSources() {
+        viewModelScope.launch {
+            val list = try {
+                repository.getMusicSources()
+            } catch (e: Exception) {
+                emptyList()
+            }
+            _sources.value = list
+            // 之前选中的音源若已不可用，回退到网易云
+            if (list.isNotEmpty() && list.none { it.id == _selectedSource.value }) {
+                selectSource(Song.SOURCE_NETEASE)
+            }
+        }
+    }
+
+    /** 切换音源：切换后立刻用当前关键词重搜 */
+    fun selectSource(sourceId: String) {
+        if (_selectedSource.value == sourceId) return
+        _selectedSource.value = sourceId
+        prefs.edit().putString(KEY_SOURCE, sourceId).apply()
+        val kw = _query.value.trim()
+        if (kw.isNotEmpty()) submitSearch(kw)
     }
 
     /** 加载真实热门搜索词（/search/hot） */
@@ -72,7 +112,7 @@ class SearchViewModel(
                 emptyList()
             }
             _results.value = try {
-                repository.search(value, 30)
+                repository.search(value, 30, _selectedSource.value)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -90,7 +130,7 @@ class SearchViewModel(
         searchJob = viewModelScope.launch {
             _searching.value = true
             _results.value = try {
-                repository.search(kw, 30)
+                repository.search(kw, 30, _selectedSource.value)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -114,5 +154,9 @@ class SearchViewModel(
         val app = getApplication<Application>()
         SearchHistoryStore.clear(app)
         _history.value = emptyList()
+    }
+
+    private companion object {
+        const val KEY_SOURCE = "selected_source"
     }
 }

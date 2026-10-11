@@ -282,7 +282,7 @@ fun MineScreen(
         if (favorites.isEmpty()) {
             item { EmptyText(stringResource(R.string.empty_favorite)) }
         } else {
-            itemsIndexed(favorites, key = { index, item -> "$index-${item.songId}" }) { index, favorite ->
+            itemsIndexed(favorites, key = { index, item -> "fav-$index-${item.songId}" }) { index, favorite ->
                 SongRow(song = favorite.toSong(), onClick = { onPlaySong(favorite.toSong()) })
             }
         }
@@ -291,7 +291,7 @@ fun MineScreen(
         if (history.isEmpty()) {
             item { EmptyText(stringResource(R.string.empty_history)) }
         } else {
-            itemsIndexed(history, key = { index, item -> "$index-${item.songId}" }) { index, item ->
+            itemsIndexed(history, key = { index, item -> "his-$index-${item.songId}" }) { index, item ->
                 SongRow(song = item.toSong(), onClick = { onPlaySong(item.toSong()) })
             }
         }
@@ -492,6 +492,8 @@ private fun Favorite.toSong(): Song = Song(
     arList = listOf(Artist(name = artist)),
     alAlbum = Album(name = album, picUrl = picUrl),
     dt = durationMs,
+    source = source,
+    token = token,
 )
 
 private fun History.toSong(): Song = Song(
@@ -500,4 +502,6 @@ private fun History.toSong(): Song = Song(
     arList = listOf(Artist(name = artist)),
     alAlbum = Album(name = album, picUrl = picUrl),
     dt = durationMs,
+    source = source,
+    token = token,
 )
