@@ -702,6 +702,7 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
     // 用 AtomicLong 而非 MutableState：避免被 snapshotFlow 订阅、反过来打断 2 秒恢复计时。
     val lastAutoScrollAt = remember { AtomicLong(0L) }
     var userScrolling by remember { mutableStateOf(false) }
+    var lastSongId by remember { mutableStateOf(state.song?.id) }
 
     // 用户手动滚动时暂停自动跟随；停止滚动 2 秒后自动恢复
     LaunchedEffect(listState) {
@@ -736,9 +737,17 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
     //      而打开歌词页时列表正好在顶部（canScrollBackward=false），scrollBy 消耗 0 → 纹丝不动。
     //      改法：中心基准改用 viewportStartOffset + viewportSize/2，量出差值用 scrollBy 相对纠正。
     //   3) 切歌后 listState 不重置：新歌词沿用上一首的滚动位置，停在半空且没有高亮。
-    //      改法：把 song.id / lyrics.size 一并作为 key，切歌即重新定位。
-    LaunchedEffect(current, userScrolling, state.song?.id, state.lyrics.size) {
+    //      旧实现把 song.id / lyrics.size 当 key：若新旧两首行数相同、或电台内切曲目时
+    //      song.id 是电台 id 不变，两个键都不触发 → effect 不重跑 → 新歌词停在上首滚动位置沉到下方。
+    //      改法：改用 `state.song` + `state.lyrics` 的**对象引用**作 key（切歌/重载歌词必换新对象，必触发）。
+    LaunchedEffect(current, userScrolling, state.song, state.lyrics) {
         if (state.lyrics.isEmpty()) return@LaunchedEffect
+        // 切歌时解除任何残留的「手动滚动冻结」，避免新歌首行被旧状态卡住
+        val songId = state.song?.id
+        if (songId != lastSongId) {
+            lastSongId = songId
+            userScrolling = false
+        }
         // 用户正在手动拖动时不打扰，交给「回到当前行」按钮处理
         if (userScrolling) return@LaunchedEffect
         // 还没唱到第一句（current == -1，常见于前奏）时把第一句摆到正中，
@@ -765,15 +774,19 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
 
         // 目标行还没被组合进视口时先粗定位到「内容坐标 0」：
         // 上下 padding 各占半屏，内容坐标 0 恰好就是视口正中，粗定位即居中。
-        if (centerOf(target) == null) {
+        // 切歌后 listState 可能停在上首的滚动位置，多试几次确保目标行真正进入视口。
+        repeat(3) { attempt ->
+            if (centerOf(target) != null) return@repeat
             lastAutoScrollAt.set(System.currentTimeMillis())
             listState.scrollToItem(target, 0)
             withFrameNanos { }
+            if (attempt == 2) return@LaunchedEffect
         }
+        if (centerOf(target) == null) return@LaunchedEffect
 
         // 相对纠正：目标行中心离视口中心差多少就滚多少。
-        // 最多 4 轮（当前行加粗放大导致行高变化也能自动修回来）。
-        repeat(4) {
+        // 最多 6 轮（当前行加粗放大导致行高变化也能自动修回来）。
+        repeat(6) {
             val c = centerOf(target) ?: return@repeat
             val delta = c - centerRef()
             if (kotlin.math.abs(delta) <= 2) return@repeat
