@@ -43,8 +43,6 @@ import com.qmusic.ui.toplist.ToplistScreen
 /** 主界面：底部导航 + 页面切换 + 迷你播放条 + 全屏播放页 */
 @Composable
 fun MainScreen(
-    darkMode: Boolean = false,
-    onThemeChanged: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as QMusicApp
@@ -126,8 +124,6 @@ fun MainScreen(
                 )
                 1 -> MineScreen(
                     repository = app.repository,
-                    darkMode = darkMode,
-                    onThemeChanged = onThemeChanged,
                     onPlaySong = { song ->
                         playerController.play(listOf(song), 0)
                         playerOpen = true

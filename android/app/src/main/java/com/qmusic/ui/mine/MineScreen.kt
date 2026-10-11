@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -61,12 +60,12 @@ import com.qmusic.data.model.Song
 import com.qmusic.ui.components.PrivacyDialog
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
+import com.qmusic.ui.theme.LocalThemeController
+import com.qmusic.ui.theme.ThemeStyle
 
 @Composable
 fun MineScreen(
     repository: MusicRepository,
-    darkMode: Boolean = false,
-    onThemeChanged: (Boolean) -> Unit = {},
     onPlaySong: (Song) -> Unit,
     onOpenLocalMusic: () -> Unit = {},
     onOpenDownloads: () -> Unit = {},
@@ -92,6 +91,7 @@ fun MineScreen(
     var showPrivacy by remember { mutableStateOf(false) }
     var showServerDialog by remember { mutableStateOf(false) }
     var showLogin by remember { mutableStateOf(false) }
+    var showThemePicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Box(Modifier.fillMaxSize()) {
@@ -145,8 +145,9 @@ fun MineScreen(
             }
         }
 
-        // 深色模式开关
+        // 主题切换（多套深色风格，可任选）
         item {
+            val controller = LocalThemeController.current
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -154,24 +155,41 @@ fun MineScreen(
                     .padding(top = 18.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(colors.card)
+                    .clickable { showThemePicker = true }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(controller.current.brand.gradientStart, controller.current.brand.gradientEnd),
+                            ),
+                        ),
+                )
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        stringResource(R.string.dark_mode),
+                        "主题",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textPrimary,
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        stringResource(R.string.dark_mode_desc),
+                        controller.current.label + " · 点击切换",
                         fontSize = 11.sp,
                         color = colors.textSecondary,
                     )
                 }
-                Switch(checked = darkMode, onCheckedChange = onThemeChanged)
+                Icon(
+                    Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
 
@@ -327,6 +345,11 @@ fun MineScreen(
         )
     }
 
+    // 主题选择
+    if (showThemePicker) {
+        ThemePickerDialog(onDismiss = { showThemePicker = false })
+    }
+
     // 网易云二维码登录
     if (showLogin) {
         LoginScreen(
@@ -339,6 +362,71 @@ fun MineScreen(
         )
     }
     }
+}
+
+@Composable
+private fun ThemePickerDialog(onDismiss: () -> Unit) {
+    val controller = LocalThemeController.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1B1B1F),
+        title = {
+            Text("选择主题", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ThemeStyle.entries.forEach { style ->
+                    val selected = style == controller.current
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (selected) Color.White.copy(alpha = 0.12f)
+                                else Color.White.copy(alpha = 0.04f),
+                            )
+                            .clickable {
+                                controller.setTheme(style)
+                                onDismiss()
+                            }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(style.brand.gradientStart, style.brand.gradientEnd),
+                                    ),
+                                ),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            style.label,
+                            fontSize = 14.sp,
+                            color = Color.White,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (selected) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(style.brand.accent),
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭", color = Color.White.copy(alpha = 0.7f))
+            }
+        },
+    )
 }
 
 @Composable

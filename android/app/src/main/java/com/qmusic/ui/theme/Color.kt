@@ -2,11 +2,8 @@ package com.qmusic.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// 品牌色
-val Accent = Color(0xFFFF4B4B)
-val Accent2 = Color(0xFFFF8A3D)
-val GradientStart = Color(0xFFFF4B5C)
-val GradientEnd = Color(0xFFFF8A3D)
+// 品牌色（Accent / Accent2 / GradientStart / GradientEnd 已迁移到 Theme.kt，
+// 改为随主题动态取值，详见 ui/theme/Theme.kt）
 
 // 浅色背景
 val Background = Color(0xFFF7F7F9)

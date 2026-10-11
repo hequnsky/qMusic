@@ -684,9 +684,6 @@ private fun RotatingDisc(coverUrl: String?, isPlaying: Boolean) {
                     }
                 }
             }
-            Box(
-                Modifier.size(36.dp).clip(CircleShape).background(Color(0xFF0D0D0F)),
-            )
         }
     }
 }
