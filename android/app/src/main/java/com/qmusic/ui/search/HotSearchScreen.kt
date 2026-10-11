@@ -46,6 +46,7 @@ import com.qmusic.data.model.HotDetailItem
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
+import com.qmusic.ui.components.topBarTopPadding
 
 /**
  * 完整热搜榜（搜索页「热搜榜 → 更多」）。
@@ -80,7 +81,7 @@ fun HotSearchScreen(
             .navigationBarsPadding(),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 8.dp, top = 40.dp, end = 16.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(start = 8.dp, top = topBarTopPadding(), end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

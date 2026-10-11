@@ -63,6 +63,7 @@ import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
+import com.qmusic.ui.components.topBarTopPadding
 
 @Composable
 fun SearchScreen(
@@ -97,7 +98,7 @@ fun SearchScreen(
     Column(Modifier.fillMaxSize().background(colors.background)) {
         // 搜索框
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 44.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = topBarTopPadding(), bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(R.string.search), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)

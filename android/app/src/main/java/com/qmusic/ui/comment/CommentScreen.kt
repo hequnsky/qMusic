@@ -48,6 +48,7 @@ import com.qmusic.ui.theme.LocalQMusicColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.qmusic.ui.components.topBarTopPadding
 
 /** 歌曲评论列表页（/comment/music） */
 @Composable
@@ -75,7 +76,7 @@ fun CommentScreen(
     Column(Modifier.fillMaxSize().background(colors.background).navigationBarsPadding()) {
         // 顶部栏
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 40.dp, start = 8.dp, end = 16.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = topBarTopPadding(), start = 8.dp, end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

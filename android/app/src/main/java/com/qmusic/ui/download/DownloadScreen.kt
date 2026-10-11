@@ -35,6 +35,7 @@ import com.qmusic.data.local.DownloadManager
 import com.qmusic.data.model.Song
 import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.theme.LocalQMusicColors
+import com.qmusic.ui.components.topBarTopPadding
 
 /** 我的下载列表页（应用私有目录，无需存储权限） */
 @Composable
@@ -50,7 +51,7 @@ fun DownloadScreen(
 
     Column(Modifier.fillMaxSize().background(colors.background).navigationBarsPadding()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 40.dp, end = 16.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = topBarTopPadding(), end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

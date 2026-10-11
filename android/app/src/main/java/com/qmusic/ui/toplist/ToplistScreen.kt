@@ -46,6 +46,7 @@ import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Toplist
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
+import com.qmusic.ui.components.topBarTopPadding
 
 /** 全部排行榜页（/toplist，63 个榜单），点击进入歌单详情 */
 @Composable
@@ -72,7 +73,7 @@ fun ToplistScreen(
 
     Column(Modifier.fillMaxSize().background(colors.background).navigationBarsPadding()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 40.dp, end = 16.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = topBarTopPadding(), end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

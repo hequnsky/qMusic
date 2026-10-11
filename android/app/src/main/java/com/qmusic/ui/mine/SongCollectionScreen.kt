@@ -40,6 +40,7 @@ import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.theme.LocalQMusicColors
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.qmusic.ui.components.topBarTopPadding
 
 /**
  * 「我喜欢的」独立列表页。
@@ -105,7 +106,7 @@ private fun SongCollectionPage(
             .navigationBarsPadding(),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 8.dp, top = 40.dp, end = 16.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(start = 8.dp, top = topBarTopPadding(), end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

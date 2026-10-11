@@ -7,10 +7,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -75,7 +76,13 @@ fun AddToPlaylistSheet(
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
             .background(colors.background)
-            .padding(bottom = 28.dp),
+            // 面板自身消费掉点击，避免按到面板空白处时穿透到底下的遮罩把弹窗关掉
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+            )
+            .padding(bottom = 20.dp),
     ) {
         Column {
             // 标题栏
@@ -140,7 +147,8 @@ fun AddToPlaylistSheet(
                     )
                 }
             } else {
-                LazyColumn(Modifier.fillMaxWidth().height(260.dp)) {
+                // 高度自适应：歌单少时面板自然收窄，不再固定留出一大块空白
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 280.dp)) {
                     items(playlists, key = { it.playlist.id }) { item ->
                         val checked = songPlaylistIds.contains(item.playlist.id)
                         Row(

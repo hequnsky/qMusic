@@ -105,6 +105,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import androidx.compose.ui.input.pointer.pointerInput
+import com.qmusic.ui.components.topBarTopPadding
 
 @Composable
 fun PlayerScreen(
@@ -170,7 +171,7 @@ fun PlayerScreen(
         Column(Modifier.fillMaxSize()) {
             // 顶部栏
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 40.dp, start = 12.dp, end = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = topBarTopPadding(), start = 12.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onClose) {
@@ -436,17 +437,32 @@ fun PlayerScreen(
         }
 
         // 「添加到歌单」底部弹窗
+        // 外层补一个半透明遮罩 + 底部居中容器：
+        // 之前面板直接挂在播放页根 Box 下，而根 Box 默认 TopStart 对齐，
+        // 结果这个「底部弹窗」跑到了屏幕顶部、还盖住了状态栏（用户反馈的「半屏显示不好」）。
         state.song?.let { currentSong ->
             if (showAddToPlaylist) {
-                AddToPlaylistSheet(
-                    repository = repository,
-                    song = currentSong,
-                    onDismiss = { showAddToPlaylist = false },
-                    onManagePlaylists = {
-                        showAddToPlaylist = false
-                        onManagePlaylists()
-                    },
-                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color(0x99000000))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { showAddToPlaylist = false },
+                        ),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    AddToPlaylistSheet(
+                        repository = repository,
+                        song = currentSong,
+                        onDismiss = { showAddToPlaylist = false },
+                        onManagePlaylists = {
+                            showAddToPlaylist = false
+                            onManagePlaylists()
+                        },
+                    )
+                }
             }
         }
 
@@ -734,7 +750,7 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
         val halfScreen = maxHeight / 2
         Column(Modifier.fillMaxSize()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 40.dp, start = 8.dp, end = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = topBarTopPadding(), start = 8.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {

@@ -60,6 +60,7 @@ import com.qmusic.ui.components.formatDuration
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
 import java.io.File
+import com.qmusic.ui.components.topBarTopPadding
 
 /** 本地音乐列表页：MediaStore 扫描 + 运行时权限申请；设备无本地音乐时展示内置演示歌曲 */
 @Composable
@@ -102,7 +103,7 @@ fun LocalMusicScreen(
     Column(Modifier.fillMaxSize().background(colors.background).navigationBarsPadding()) {
         // 顶部栏
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 40.dp, start = 8.dp, end = 16.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = topBarTopPadding(), start = 8.dp, end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

@@ -38,6 +38,7 @@ import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.ui.theme.LocalQMusicColors
 import kotlinx.coroutines.delay
+import com.qmusic.ui.components.topBarTopPadding
 
 /**
  * 网易云二维码登录页。
@@ -99,7 +100,7 @@ fun LoginScreen(
         Modifier.fillMaxSize().background(colors.background),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 40.dp, end = 16.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = topBarTopPadding(), end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

@@ -51,6 +51,7 @@ import com.qmusic.ui.components.formatPlayCount
 import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
+import com.qmusic.ui.components.topBarTopPadding
 
 /** 全部热门歌单列表页（发现页「更多 ›」入口） */
 @Composable
@@ -77,7 +78,7 @@ fun HotPlaylistScreen(
     Column(Modifier.fillMaxSize().background(colors.background).navigationBarsPadding()) {
         // 顶部栏
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 40.dp, start = 8.dp, end = 16.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = topBarTopPadding(), start = 8.dp, end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

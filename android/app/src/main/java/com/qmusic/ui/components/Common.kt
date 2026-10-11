@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +42,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -64,6 +68,17 @@ fun formatPlayCount(count: Long): String = when {
     count >= 10_000 -> "%.0f万".format(count / 1e4)
     else -> count.toString()
 }
+
+/**
+ * 二级页顶栏（返回按钮那一行）距离屏幕顶部的内边距 = 状态栏（含挖孔区）高度 + [extra]。
+ *
+ * 原先各页面都硬编码 `top = 40.dp`：本机挖孔区高 139px（≈40dp），
+ * 顶栏行的顶边正好压在状态栏底边上，视觉上「返回按钮紧贴顶部栏」；
+ * 换台挖孔更高的机器还会直接重叠。改为按系统状态栏高度动态计算。
+ */
+@Composable
+fun topBarTopPadding(extra: Dp = 10.dp): Dp =
+    WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + extra
 
 /** 未接线功能统一提示「暂未实现」 */
 fun showNotImplemented(context: Context) {

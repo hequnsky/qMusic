@@ -53,6 +53,7 @@ import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.components.formatPlayCount
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
+import com.qmusic.ui.components.topBarTopPadding
 
 /** 分类内容加载模式 */
 sealed class CategoryLoadMode {
@@ -118,7 +119,7 @@ fun CategoryMusicScreen(
     Column(Modifier.fillMaxSize().background(colors.background).navigationBarsPadding()) {
         // 顶部栏
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 40.dp, start = 8.dp, end = 16.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = topBarTopPadding(), start = 8.dp, end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

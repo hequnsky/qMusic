@@ -56,6 +56,7 @@ import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.theme.Accent
 import com.qmusic.ui.theme.LocalQMusicColors
 import kotlinx.coroutines.launch
+import com.qmusic.ui.components.topBarTopPadding
 
 /** 我的歌单：创建、重命名、删除、进入查看曲目 */
 @Composable
@@ -83,7 +84,7 @@ fun MyPlaylistsScreen(
     ) {
         // 顶栏
         Row(
-            Modifier.fillMaxWidth().padding(start = 8.dp, top = 40.dp, end = 16.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(start = 8.dp, top = topBarTopPadding(), end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
@@ -267,7 +268,7 @@ fun PlaylistSongsScreen(
             .navigationBarsPadding(),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 8.dp, top = 40.dp, end = 16.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(start = 8.dp, top = topBarTopPadding(), end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
