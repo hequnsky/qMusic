@@ -194,11 +194,34 @@ class MusicRepository(
     /** 取歌词。带 token 的非网易云歌曲走多音源接口。 */
     suspend fun getLyric(song: Song): List<LyricLine> {
         val token = song.token
-        if (song.source != Song.SOURCE_NETEASE && !token.isNullOrBlank()) {
+        val lines = if (song.source != Song.SOURCE_NETEASE && !token.isNullOrBlank()) {
             val lrc = api.multiLyric(token).lrc
-            if (lrc.isNotBlank()) return LrcParser.parse(lrc)
+            if (lrc.isNotBlank()) LrcParser.parse(lrc) else getLyric(song.id)
+        } else {
+            getLyric(song.id)
         }
-        return getLyric(song.id)
+        return stripTitleArtistHeader(lines, song)
+    }
+
+    /**
+     * 剔除歌词开头混进来的「歌名 / 歌手名」行。
+     *
+     * 部分音源会把 `[00:00.00]歌名` / `[00:02.00]歌手` 这种信息也写进歌词正文，
+     * 它们会作为普通歌词参与时间匹配 —— 表现就是开头白占两行，
+     * 而且歌手名会被高亮成「正在唱的那句」。这里按归一化文本比对开头几行剔除。
+     */
+    private fun stripTitleArtistHeader(lines: List<LyricLine>, song: Song): List<LyricLine> {
+        if (lines.isEmpty()) return lines
+        val title = song.name.normalizeForMatch()
+        val artist = song.artistName.normalizeForMatch()
+        if (title.isEmpty() && artist.isEmpty()) return lines
+        var drop = 0
+        for (line in lines.take(3)) {
+            val text = line.content.normalizeForMatch()
+            if (text.isNotEmpty() && (text == title || text == artist)) drop++ else break
+        }
+        // 至少留一行，避免整首歌词被误删干净
+        return if (drop in 1 until lines.size) lines.drop(drop) else lines
     }
 
     /**
@@ -339,3 +362,9 @@ fun PlaylistSong.toSong(): Song = Song(
     source = source,
     token = token,
 )
+
+/**
+ * 文本归一化，用于「歌词行 == 歌名/歌手」这类模糊比对：
+ * 去掉空格与标点、统一小写，于是 `Blowin' in the Wind` 与 `Blowin in The Wind` 视为同一串。
+ */
+private fun String.normalizeForMatch(): String = lowercase().filter { it.isLetterOrDigit() }

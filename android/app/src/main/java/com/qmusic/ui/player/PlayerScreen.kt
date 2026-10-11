@@ -66,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -724,84 +725,124 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
     LaunchedEffect(listState) {
         snapshotFlow { current to userScrolling }
             .collectLatest { (cur, scrolling) ->
-                if (cur < 0 || state.lyrics.isEmpty()) return@collectLatest
+                if (state.lyrics.isEmpty()) return@collectLatest
                 // 用户正在手动拖动时不打扰，交给「回到当前行」按钮处理
                 if (scrolling) return@collectLatest
-                // 让列表先完成一次测量，否则 visibleItemsInfo 为空、算不出行高
-                if (listState.layoutInfo.visibleItemsInfo.isEmpty()) {
-                    listState.scrollToItem(0, 0)
+                // 还没唱到第一句（cur == -1，常见于前奏）时把第一句摆到正中：
+                // 否则列表停在「内容起点」这个未滚动状态，首句会偏下半个行高、看着压在屏幕下半部。
+                val target = cur.coerceAtLeast(0)
+                // animateScrollToItem 的 scrollOffset 是「目标行顶边相对列表内容起点」的**绝对**偏移，
+                // 不是「相对当前位置」的增量。列表上下各留半屏 contentPadding，
+                // 内容起点正好落在视口正中，所以只要把顶边再上推「行高的一半」，
+                // 该行中心就精确落在视口正中。
+                //
+                // 旧写法拿 target.offset 与视口中心求差，等于每次都把当前行多推一个「已滚动量」，
+                // 越往后越偏离中心 —— 这也是歌词看着整体偏下的原因之一。
+                //
+                // 行高必须取**目标行自己的**高度（歌词行有没有翻译行、长短是否折行都会差很多，
+                // 用平均行高会差出小半行）。目标行不在视口内时先粗定位到内容起点，等一帧布局再量。
+                var lineHeight = listState.layoutInfo.visibleItemsInfo
+                    .firstOrNull { it.index == target }?.size ?: 0
+                if (lineHeight == 0) {
+                    listState.scrollToItem(target, 0)
+                    withFrameNanos { }
+                    lineHeight = listState.layoutInfo.visibleItemsInfo
+                        .firstOrNull { it.index == target }?.size ?: 0
                 }
-                // 目标行若已在视口内，用真实行高算居中偏移；否则直接对齐到内容顶部
-                val target = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == cur }
-                val offset = if (target != null) {
+                // 已经在正中附近就别动它，避免每 500ms 一次的无谓滚动
+                val centerOffset = lineHeight / 2
+                val curInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == target }
+                if (curInfo != null) {
                     val viewportCenter = listState.layoutInfo.viewportSize.height / 2
-                    target.offset + target.size / 2 - viewportCenter
-                } else {
-                    0
+                    val distance = curInfo.offset + curInfo.size / 2 - viewportCenter
+                    if (distance > -centerOffset && distance < centerOffset) return@collectLatest
                 }
                 autoScrolling = true
-                listState.animateScrollToItem(cur, offset)
+                // 用瞬时定位而不是动画：current 每 0.5s 变一次，animateScrollToItem 会被
+                // collectLatest 反复取消、列表长期停在半途（表现为当前行迟迟不居中）。
+                listState.scrollToItem(target, centerOffset)
+                // 等一小会儿再复位标志：snapshotFlow 是异步的，立刻复位会让紧随其后的
+                // isScrollInProgress=true 被误判成「用户拖拽」，白白冻结 2 秒跟随。
+                delay(120)
                 autoScrolling = false
             }
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF22152E))) {
-        // 上下各留半屏 contentPadding，使当前行位于视口正中
+    // navigationBarsPadding：整块歌词连同「半屏留白」的基准高度一起抬到系统导航栏之上，
+    // 否则滚到末尾时最后一行会被导航栏压住（背景仍由 background 铺满全屏）。
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF22152E)).navigationBarsPadding()) {
+        // 上下各留半屏 contentPadding，使当前行位于视口正中。
+        //
+        // 关键：歌词列表必须**铺满整屏**、顶栏改成浮层叠在它上面。
+        // 之前顶栏是 Column 里的普通一行，列表视口被顶栏压掉约 340px，
+        // 而上下留白仍按「整屏高度的一半」算 → 第 0 项的中心落到屏幕 66% 处，
+        // 整块歌词看着往下沉、上半屏空一大片（用户反馈的「歌词有问题」）。
         val halfScreen = maxHeight / 2
-        Column(Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = topBarTopPadding(), start = 8.dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.back), tint = Color.White)
-                }
-                Text(
-                    state.song?.name ?: "",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(48.dp))
+
+        if (state.lyrics.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.no_lyrics), color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp)
             }
-            if (state.lyrics.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.no_lyrics), color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp)
-                }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize().padding(bottom = 60.dp),
-                    contentPadding = PaddingValues(vertical = halfScreen),
-                ) {
-                    itemsIndexed(state.lyrics) { index, line ->
-                        val isCurrent = index == current
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 30.dp, vertical = 9.dp),
-                        ) {
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = halfScreen),
+            ) {
+                itemsIndexed(state.lyrics) { index, line ->
+                    val isCurrent = index == current
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 30.dp, vertical = 9.dp),
+                    ) {
+                        Text(
+                            line.content,
+                            fontSize = if (isCurrent) 17.sp else 15.sp,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.35f),
+                            textAlign = TextAlign.Center,
+                        )
+                        if (line.translation.isNotBlank()) {
                             Text(
-                                line.content,
-                                fontSize = if (isCurrent) 17.sp else 15.sp,
-                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.35f),
+                                line.translation,
+                                fontSize = if (isCurrent) 12.sp else 11.sp,
+                                color = if (isCurrent) Color.White.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.22f),
                                 textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 3.dp),
                             )
-                            if (line.translation.isNotBlank()) {
-                                Text(
-                                    line.translation,
-                                    fontSize = if (isCurrent) 12.sp else 11.sp,
-                                    color = if (isCurrent) Color.White.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.22f),
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(top = 3.dp),
-                                )
-                            }
                         }
                     }
                 }
             }
+        }
+
+        // 顶栏（浮层）：底部用「同色 → 透明」的渐变收口，
+        // 免得歌词行滚上来时贴着标题被硬切。
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color(0xFF22152E),
+                        0.62f to Color(0xFF22152E),
+                        1f to Color.Transparent,
+                    ),
+                )
+                .padding(top = topBarTopPadding(), start = 8.dp, end = 8.dp, bottom = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.back), tint = Color.White)
+            }
+            Text(
+                state.song?.name ?: "",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(48.dp))
         }
         // 用户拖动期间显示“回到当前行”按钮
         if (userScrolling && state.lyrics.isNotEmpty()) {
@@ -811,7 +852,7 @@ private fun LyricView(state: PlayerUiState, onBack: () -> Unit) {
                 fontSize = 12.sp,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 76.dp)
+                    .padding(bottom = 32.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(Color.White.copy(alpha = 0.15f))
                     .clickable {
