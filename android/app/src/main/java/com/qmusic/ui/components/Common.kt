@@ -45,7 +45,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.Song
@@ -85,26 +84,15 @@ fun showNotImplemented(context: Context) {
     Toast.makeText(context, R.string.not_implemented, Toast.LENGTH_SHORT).show()
 }
 
-/** 封面图（无图时显示渐变占位） */
+/** 封面图（无图 / 加载失败时显示主题化默认封面，永不露白） */
 @Composable
 fun SongCover(url: String?, size: Int, corner: Int = 10) {
     val shape = RoundedCornerShape(corner.dp)
-    if (!url.isNullOrBlank()) {
-        AsyncImage(
-            model = url,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(size.dp).clip(shape),
-        )
-    } else {
-        Box(
-            modifier = Modifier.size(size.dp).clip(shape)
-                .background(Brush.linearGradient(listOf(Color(0xFFB9B9C4), Color(0xFF8A8A93)))),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("♪", fontSize = (size * 0.42).sp, color = Color.White)
-        }
-    }
+    CoverWithPlaceholder(
+        url = url,
+        modifier = Modifier.size(size.dp).clip(shape),
+        circle = false,
+    )
 }
 
 /** 歌曲行 */
@@ -195,22 +183,11 @@ fun PlaylistCard(playlist: Playlist, onClick: () -> Unit) {
         modifier = Modifier.width(128.dp).clickable(onClick = onClick),
     ) {
         Box(modifier = Modifier.size(128.dp)) {
-            if (!playlist.coverUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = playlist.coverUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(128.dp).clip(RoundedCornerShape(16.dp)),
-                )
-            } else {
-                Box(
-                    modifier = Modifier.size(128.dp).clip(RoundedCornerShape(16.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFFB9B9C4), Color(0xFF8A8A93)))),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("♪", fontSize = 40.sp, color = Color.White)
-                }
-            }
+            CoverWithPlaceholder(
+                url = playlist.coverUrl,
+                modifier = Modifier.size(128.dp).clip(RoundedCornerShape(16.dp)),
+                circle = false,
+            )
             Text(
                 "▶ ${formatPlayCount(playlist.playCount)}",
                 fontSize = 10.sp,

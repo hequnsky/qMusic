@@ -358,3 +358,97 @@ data class PlaylistDetail(
 ) {
     val coverUrl: String? get() = coverImgUrl
 }
+
+// ---------- 网易云歌单导入 ----------
+
+/** 歌单导入 - 创建任务响应 */
+@Serializable
+data class PlaylistImportResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: PlaylistImportData? = null,
+)
+
+@Serializable
+data class PlaylistImportData(
+    val id: String? = null,
+    val taskId: String? = null,
+    /** 部分实现把任务 id 放在 data.id / data.taskId，兼容两者 */
+    val playlistId: Long = 0,
+)
+
+/** 歌单导入 - 任务状态响应 */
+@Serializable
+data class PlaylistImportStatusResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: PlaylistImportStatusData? = null,
+)
+
+@Serializable
+data class PlaylistImportStatusData(
+    val status: Int = 0,
+    val message: String = "",
+    val playlistId: Long = 0,
+    val name: String = "",
+    @SerialName("songCount") val songCount: Int = 0,
+)
+
+// ---------------- 视频（类抖音信息流） ----------------
+
+/** 推荐视频信息流响应（/video/timeline/recommend） */
+@Serializable
+data class VideoTimelineResponse(
+    val code: Int = 0,
+    val datas: List<VideoTimelineItem> = emptyList(),
+)
+
+/** 信息流中的一项：data 里是视频完整信息 */
+@Serializable
+data class VideoTimelineItem(
+    val type: Int = 0,
+    val data: VideoData? = null,
+)
+
+/** 推荐视频数据 */
+@Serializable
+data class VideoData(
+    /** 视频唯一 id（在 threadId 尾部） */
+    val vid: String = "",
+    /** 完整 threadId，形如 R_VI_62_<vid>；部分实现只在 threadId 里有 vid */
+    @SerialName("threadId") val threadId: String = "",
+    val title: String = "",
+    val coverUrl: String = "",
+    val description: String? = null,
+    val durationms: Long = 0,
+    @SerialName("commentCount") val commentCount: Long = 0,
+    @SerialName("shareCount") val shareCount: Long = 0,
+    @SerialName("playTime") val playTime: Long = 0,
+    val creator: VideoCreator? = null,
+) {
+    val videoId: String
+        get() = if (vid.isNotBlank()) vid else threadId.substringAfterLast('_')
+    val durationMs: Long get() = durationms
+}
+
+/** 视频作者 */
+@Serializable
+data class VideoCreator(
+    val userId: Long = 0,
+    val nickname: String = "",
+    val avatarUrl: String = "",
+    val signature: String = "",
+)
+
+/** 视频播放地址响应（/video/url） */
+@Serializable
+data class VideoUrlResponse(
+    val code: Int = 0,
+    val urls: List<VideoUrl> = emptyList(),
+)
+
+@Serializable
+data class VideoUrl(
+    val id: String = "",
+    val url: String = "",
+)

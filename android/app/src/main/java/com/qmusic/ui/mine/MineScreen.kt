@@ -1,5 +1,6 @@
 package com.qmusic.ui.mine
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,22 +26,30 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -55,6 +64,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
+import com.qmusic.data.local.LoginStore
 import com.qmusic.data.local.ServerConfig
 import com.qmusic.data.model.Song
 import com.qmusic.ui.components.PrivacyDialog
@@ -62,6 +72,8 @@ import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
 import com.qmusic.ui.theme.LocalThemeController
 import com.qmusic.ui.theme.ThemeStyle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun MineScreen(
@@ -92,6 +104,7 @@ fun MineScreen(
     var showServerDialog by remember { mutableStateOf(false) }
     var showLogin by remember { mutableStateOf(false) }
     var showThemePicker by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Box(Modifier.fillMaxSize()) {
@@ -139,8 +152,15 @@ fun MineScreen(
                         label = "我的歌单",
                         onClick = onOpenMyPlaylists,
                     )
-                    // 占位，保持 2 列网格的最后一行完整
-                    Box(Modifier.weight(1f))
+                    ActionCard(
+                        icon = Icons.Filled.FileUpload,
+                        label = "导入歌单",
+                        sub = if (loginState.loggedIn) "文字 / 链接" else "需登录",
+                        onClick = {
+                            if (loginState.loggedIn) showImportDialog = true
+                            else showLogin = true
+                        },
+                    )
                 }
             }
         }
@@ -361,6 +381,14 @@ fun MineScreen(
             },
         )
     }
+
+    // 导入歌单
+    if (showImportDialog) {
+        ImportPlaylistDialog(
+            repository = repository,
+            onDismiss = { showImportDialog = false },
+        )
+    }
     }
 }
 
@@ -389,20 +417,12 @@ private fun ThemePickerDialog(onDismiss: () -> Unit) {
                                 controller.setTheme(style)
                                 onDismiss()
                             }
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(style.brand.gradientStart, style.brand.gradientEnd),
-                                    ),
-                                ),
-                        )
-                        Spacer(Modifier.width(12.dp))
+                        // 主题迷你预览图（手机缩略效果）
+                        ThemePreview(style = style, modifier = Modifier.size(width = 52.dp, height = 88.dp))
+                        Spacer(Modifier.width(14.dp))
                         Text(
                             style.label,
                             fontSize = 14.sp,
@@ -427,6 +447,122 @@ private fun ThemePickerDialog(onDismiss: () -> Unit) {
             }
         },
     )
+}
+
+/**
+ * 主题迷你预览图：模拟手机界面缩略效果。
+ * 仅依赖 [ThemeStyle.brand]，换主题时预览随之更新。
+ */
+@Composable
+private fun ThemePreview(style: ThemeStyle, modifier: Modifier = Modifier) {
+    val bg = if (style.dark) Color(0xFF121216) else Color(0xFFF7F7F9)
+    val card = if (style.dark) Color(0xFF1E1E24) else Color(0xFFFFFFFF)
+    val text = if (style.dark) Color(0xFFECECEF) else Color(0xFF15161A)
+    val sub = if (style.dark) Color(0xFF9A9AA3) else Color(0xFF8A8A93)
+    val brand = style.brand
+
+    Canvas(modifier = modifier.clip(RoundedCornerShape(10.dp))) {
+        val w = size.width
+        val h = size.height
+        // 手机外壳圆角背景
+        drawRoundRect(
+            color = Color(0xFF000000),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx(), 8.dp.toPx()),
+        )
+        // 屏幕背景
+        drawRoundRect(
+            color = bg,
+            topLeft = Offset(2.dp.toPx(), 2.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(w - 4.dp.toPx(), h - 4.dp.toPx()),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+        )
+        // 顶栏
+        drawRoundRect(
+            color = card,
+            topLeft = Offset(2.dp.toPx(), 2.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(w - 4.dp.toPx(), 16.dp.toPx()),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+        )
+        // 顶栏返回箭头
+        drawLine(
+            color = text,
+            start = Offset(7.dp.toPx(), 8.dp.toPx()),
+            end = Offset(10.dp.toPx(), 11.dp.toPx()),
+            strokeWidth = 1.4.dp.toPx(),
+        )
+        drawLine(
+            color = text,
+            start = Offset(10.dp.toPx(), 11.dp.toPx()),
+            end = Offset(7.dp.toPx(), 14.dp.toPx()),
+            strokeWidth = 1.4.dp.toPx(),
+        )
+        // 顶栏标题（主题色）
+        drawLine(
+            color = brand.accent,
+            start = Offset(13.dp.toPx(), 7.dp.toPx()),
+            end = Offset(26.dp.toPx(), 7.dp.toPx()),
+            strokeWidth = 2.2.dp.toPx(),
+        )
+        drawLine(
+            color = brand.accent,
+            start = Offset(13.dp.toPx(), 10.dp.toPx()),
+            end = Offset(22.dp.toPx(), 10.dp.toPx()),
+            strokeWidth = 2.2.dp.toPx(),
+        )
+        // 主内容区：渐变封面（圆）
+        val coverCenter = Offset(w / 2f, (16.dp.toPx() + (h - 16.dp.toPx() - 22.dp.toPx()) * 0.40f))
+        val coverRadius = (w * 0.30f).coerceAtMost((h - 16.dp.toPx() - 22.dp.toPx()) * 0.38f)
+        drawCircle(
+            brush = Brush.linearGradient(
+                colors = listOf(brand.gradientStart, brand.gradientEnd),
+                start = Offset(coverCenter.x - coverRadius, coverCenter.y - coverRadius),
+                end = Offset(coverCenter.x + coverRadius, coverCenter.y + coverRadius),
+            ),
+            radius = coverRadius,
+            center = coverCenter,
+        )
+        // 封面上的音符
+        val noteColor = Color.White.copy(alpha = 0.9f)
+        val nr = coverRadius * 0.22f
+        drawOval(
+            color = noteColor,
+            topLeft = Offset(coverCenter.x - nr * 0.4f, coverCenter.y - nr * 0.35f),
+            size = androidx.compose.ui.geometry.Size(nr * 0.8f, nr * 0.55f),
+        )
+        drawLine(
+            color = noteColor,
+            start = Offset(coverCenter.x - nr * 0.4f, coverCenter.y + nr * 0.2f),
+            end = Offset(coverCenter.x - nr * 0.4f, coverCenter.y - nr * 0.6f),
+            strokeWidth = 1.4.dp.toPx(),
+        )
+        drawCircle(
+            color = noteColor,
+            radius = nr * 0.22f,
+            center = Offset(coverCenter.x - nr * 0.4f + nr * 0.55f, coverCenter.y + nr * 0.2f),
+        )
+        // 封面下方文字条
+        drawRoundRect(
+            color = card,
+            topLeft = Offset(4.dp.toPx(), coverCenter.y + coverRadius + 5.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(w - 8.dp.toPx(), 9.dp.toPx()),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx()),
+        )
+        // 播放按钮（强调色圆）
+        val btnCenter = Offset(w / 2f, h - 13.dp.toPx())
+        drawCircle(color = brand.accent, radius = 5.5.dp.toPx(), center = btnCenter)
+        // 播放三角
+        val path = Path().apply {
+            moveTo(btnCenter.x - 1.8.dp.toPx(), btnCenter.y - 2.6.dp.toPx())
+            lineTo(btnCenter.x - 1.8.dp.toPx(), btnCenter.y + 2.6.dp.toPx())
+            lineTo(btnCenter.x + 2.6.dp.toPx(), btnCenter.y)
+            close()
+        }
+        drawPath(path, color = Color.White)
+        // 底部导航点
+        drawCircle(color = brand.accent, radius = 1.3.dp.toPx(), center = Offset(w / 2f - 8.dp.toPx(), h - 4.dp.toPx()))
+        drawCircle(color = sub, radius = 1.3.dp.toPx(), center = Offset(w / 2f, h - 4.dp.toPx()))
+        drawCircle(color = sub, radius = 1.3.dp.toPx(), center = Offset(w / 2f + 8.dp.toPx(), h - 4.dp.toPx()))
+    }
 }
 
 @Composable
@@ -547,4 +683,163 @@ private fun RowScope.ActionCard(
             Text(sub, fontSize = 10.sp, color = colors.textSecondary)
         }
     }
+}
+
+// ==================== 导入歌单 ====================
+
+/**
+ * 网易云歌单导入对话框：支持「文字导入」与「链接导入」两种方式。
+ * 仅登录后可见（未登录时入口直接引导去登录）。
+ */
+@Composable
+private fun ImportPlaylistDialog(
+    repository: MusicRepository,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val colors = LocalQMusicColors.current
+    var tab by remember { mutableIntStateOf(0) }
+    var text by remember { mutableStateOf("") }
+    var link by remember { mutableStateOf("") }
+    var playlistName by remember { mutableStateOf("") }
+    var importing by remember { mutableStateOf(false) }
+    var resultMsg by remember { mutableStateOf("") }
+    var taskId by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = { if (!importing) onDismiss() },
+        containerColor = Color(0xFF1B1B1F),
+        title = {
+            Text("导入歌单", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        },
+        text = {
+            Column {
+                TabRow(
+                    selectedTabIndex = tab,
+                    containerColor = Color.Transparent,
+                    contentColor = GradientStart,
+                ) {
+                    Tab(
+                        selected = tab == 0,
+                        onClick = { tab = 0 },
+                        text = { Text("文字导入", fontSize = 13.sp, color = if (tab == 0) GradientStart else Color.White.copy(alpha = 0.5f)) },
+                    )
+                    Tab(
+                        selected = tab == 1,
+                        onClick = { tab = 1 },
+                        text = { Text("链接导入", fontSize = 13.sp, color = if (tab == 1) GradientStart else Color.White.copy(alpha = 0.5f)) },
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = playlistName,
+                    onValueChange = { playlistName = it },
+                    singleLine = true,
+                    label = { Text("歌单名（可选）", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp) },
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = Color.White),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(10.dp))
+
+                if (tab == 0) {
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        minLines = 4,
+                        label = { Text("每行一首：歌名 歌手", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp) },
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = Color.White),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = link,
+                        onValueChange = { link = it },
+                        minLines = 4,
+                        label = { Text("每行一个歌单分享链接", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp) },
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = Color.White),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                if (importing) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (taskId.isBlank()) "提交中…" else "已提交，正在查询任务状态…",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.7f),
+                        )
+                    }
+                }
+                if (resultMsg.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(resultMsg, fontSize = 12.sp, color = if (resultMsg.startsWith("✅")) Color(0xFF7CFC98) else Color(0xFFFF6B6B))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !importing,
+                onClick = {
+                    val cookie = LoginStore.getCookie(context)
+                    if (cookie.isBlank()) {
+                        resultMsg = "❌ 未登录，请先登录网易云账号"
+                        return@TextButton
+                    }
+                    val content = if (tab == 0) text.trim() else link.trim()
+                    if (content.isBlank()) {
+                        resultMsg = "❌ 请输入内容"
+                        return@TextButton
+                    }
+                    scope.launch {
+                        importing = true
+                        resultMsg = ""
+                        taskId = ""
+                        try {
+                            val id = if (tab == 0) {
+                                repository.importPlaylistByText(content, playlistName.ifBlank { null }, cookie)
+                            } else {
+                                val links = content.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                                repository.importPlaylistByLink(links, playlistName.ifBlank { null }, cookie)
+                            }
+                            if (id.isNullOrBlank()) {
+                                resultMsg = "❌ 导入失败：未拿到任务 id（可能是接口变更或网络问题）"
+                                importing = false
+                                return@launch
+                            }
+                            taskId = id
+                            // 轮询任务状态（最多 30 次 × 2s = 60s）
+                            for (i in 1..30) {
+                                delay(2000)
+                                val (status, message, _) = repository.importPlaylistStatus(id, cookie)
+                                if (status == 0) {
+                                    resultMsg = "✅ 导入成功！歌单已生成（可在网易云 App 查看）"
+                                    importing = false
+                                    return@launch
+                                } else if (status != 1) {
+                                    resultMsg = "❌ 导入失败：$message"
+                                    importing = false
+                                    return@launch
+                                }
+                            }
+                            resultMsg = "⏳ 已提交，请稍后在网易云 App 查看结果"
+                            importing = false
+                        } catch (e: Exception) {
+                            resultMsg = "❌ 导入异常：${e.message}"
+                            importing = false
+                        }
+                    }
+                },
+            ) {
+                Text("开始导入", color = GradientStart)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !importing) {
+                Text("关闭", color = Color.White.copy(alpha = 0.6f))
+            }
+        },
+    )
 }

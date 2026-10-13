@@ -7,6 +7,8 @@ import com.qmusic.data.model.MultiSearchResponse
 import com.qmusic.data.model.MultiSongUrlResponse
 import com.qmusic.data.model.MultiSourcesResponse
 import com.qmusic.data.model.PersonalizedResponse
+import com.qmusic.data.model.PlaylistImportResponse
+import com.qmusic.data.model.PlaylistImportStatusResponse
 import com.qmusic.data.model.PlaylistDetailResponse
 import com.qmusic.data.model.QrCheckResponse
 import com.qmusic.data.model.QrCreateResponse
@@ -22,6 +24,8 @@ import com.qmusic.data.model.TopPlaylistResponse
 import com.qmusic.data.model.TopSongResponse
 import com.qmusic.data.model.UserAccountResponse
 import com.qmusic.data.model.UserDetailResponse
+import com.qmusic.data.model.VideoTimelineResponse
+import com.qmusic.data.model.VideoUrlResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -130,6 +134,26 @@ interface MusicApiService {
     @GET("playlist/detail")
     suspend fun playlistDetail(@Query("id") id: Long): PlaylistDetailResponse
 
+    // ---------- 网易云歌单导入（需登录） ----------
+
+    /** 歌单导入 - 元数据/文字/链接导入（生成任务） */
+    @GET("playlist/import/name/task/create")
+    suspend fun playlistImportCreate(
+        @Query("text") text: String? = null,
+        @Query("local") local: String? = null,
+        @Query("link") link: String? = null,
+        @Query("playlistName") playlistName: String? = null,
+        @Query("importStarPlaylist") importStarPlaylist: Boolean = false,
+        @Header("Cookie") cookie: String,
+    ): PlaylistImportResponse
+
+    /** 歌单导入 - 任务状态查询 */
+    @GET("playlist/import/task/status")
+    suspend fun playlistImportStatus(
+        @Query("id") id: String,
+        @Header("Cookie") cookie: String,
+    ): PlaylistImportStatusResponse
+
     // ---------------- 多音源（music-lib 聚合层，/multi/*） ----------------
 
     /** 可用音源列表（服务端多音源是否在线） */
@@ -151,4 +175,14 @@ interface MusicApiService {
     /** 多音源歌词 */
     @GET("multi/lyric")
     suspend fun multiLyric(@Query("s") token: String): MultiLyricResponse
+
+    // ---------------- 视频（类抖音信息流） ----------------
+
+    /** 推荐视频信息流 */
+    @GET("video/timeline/recommend")
+    suspend fun videoTimelineRecommend(@Query("offset") offset: Int = 0): VideoTimelineResponse
+
+    /** 视频播放地址 */
+    @GET("video/url")
+    suspend fun videoUrl(@Query("id") id: String): VideoUrlResponse
 }

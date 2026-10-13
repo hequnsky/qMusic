@@ -36,19 +36,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.Song
+import com.qmusic.ui.components.CoverWithPlaceholder
 import com.qmusic.ui.components.SongRow
 import com.qmusic.ui.components.formatPlayCount
 import com.qmusic.ui.theme.GradientStart
@@ -164,22 +162,11 @@ fun CategoryMusicScreen(
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                if (!playlist.coverUrl.isNullOrBlank()) {
-                                    AsyncImage(
-                                        model = playlist.coverUrl,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
-                                    )
-                                } else {
-                                    Box(
-                                        Modifier.size(56.dp).clip(RoundedCornerShape(12.dp))
-                                            .background(Brush.linearGradient(listOf(Color(0xFFB9B9C4), Color(0xFF8A8A93)))),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text("♪", fontSize = 20.sp, color = Color.White)
-                                    }
-                                }
+                                CoverWithPlaceholder(
+                                    url = playlist.coverUrl,
+                                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
+                                    circle = false,
+                                )
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(

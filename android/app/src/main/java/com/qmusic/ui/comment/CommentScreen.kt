@@ -39,10 +39,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Comment
+import com.qmusic.ui.components.CoverWithPlaceholder
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
 import java.text.SimpleDateFormat
@@ -122,22 +122,11 @@ fun CommentScreen(
                 ) {
                     itemsIndexed(comments.orEmpty(), key = { index, comment -> "$index-${comment.content.hashCode()}" }) { _, comment ->
                         Row(Modifier.fillMaxWidth()) {
-                            if (!comment.user.avatarUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = comment.user.avatarUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(40.dp).clip(CircleShape),
-                                )
-                            } else {
-                                Box(
-                                    Modifier.size(40.dp).clip(CircleShape)
-                                        .background(colors.card),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text("🎵", fontSize = 16.sp)
-                                }
-                            }
+                            CoverWithPlaceholder(
+                                url = comment.user.avatarUrl,
+                                modifier = Modifier.size(40.dp).clip(CircleShape),
+                                circle = true,
+                            )
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {

@@ -18,6 +18,7 @@ import com.qmusic.data.model.UserProfile
 import com.qmusic.data.model.LyricLine
 import com.qmusic.data.model.MusicSource
 import com.qmusic.data.model.Playlist
+import com.qmusic.data.model.VideoData
 import com.qmusic.data.model.PlaylistDetail
 import com.qmusic.data.model.Song
 import com.qmusic.data.remote.MusicApiService
@@ -251,6 +252,80 @@ class MusicRepository(
 
     suspend fun getPlaylistDetail(id: Long): PlaylistDetail? =
         api.playlistDetail(id).playlist.takeIf { it.id != 0L }
+
+    // ---------------- 视频（类抖音信息流） ----------------
+
+    /** 获取推荐视频信息流 */
+    suspend fun getVideoTimeline(offset: Int = 0): List<VideoData> =
+        api.videoTimelineRecommend(offset).datas.mapNotNull { it.data }
+
+    /** 获取视频播放地址（/video/url） */
+    suspend fun getVideoUrl(videoId: String): String? =
+        api.videoUrl(videoId).urls.firstOrNull { !it.url.isBlank() }?.url
+
+    // ---------- 网易云歌单导入（需登录） ----------
+
+    /**
+     * 歌单导入 - 文字导入。
+     *
+     * @param text 每行「歌名 歌手」的纯文本
+     * @param playlistName 生成的歌单名（默认网易云自动取名）
+     * @param cookie 登录态
+     * @return 任务 id（用于轮询状态）
+     */
+    suspend fun importPlaylistByText(
+        text: String,
+        playlistName: String? = null,
+        cookie: String,
+    ): String? {
+        val resp = api.playlistImportCreate(
+            text = text,
+            playlistName = playlistName,
+            cookie = cookie,
+        )
+        return resp.data?.id ?: resp.data?.taskId
+    }
+
+    /**
+     * 歌单导入 - 链接导入。
+     *
+     * @param links 外部歌单分享链接（QQ音乐等）
+     * @param playlistName 生成的歌单名
+     * @param cookie 登录态
+     * @return 任务 id
+     */
+    suspend fun importPlaylistByLink(
+        links: List<String>,
+        playlistName: String? = null,
+        cookie: String,
+    ): String? {
+        // 链接数组编码成 JSON 数组字符串（["url1","url2"]），网易云接口要求 link 参数是这种格式
+        val encoded = buildString {
+            append('[')
+            links.forEachIndexed { i, url ->
+                if (i > 0) append(',')
+                append('"').append(url.replace("\\", "\\\\").replace("\"", "\\\"")).append('"')
+            }
+            append(']')
+        }
+        val resp = api.playlistImportCreate(
+            link = encoded,
+            playlistName = playlistName,
+            cookie = cookie,
+        )
+        return resp.data?.id ?: resp.data?.taskId
+    }
+
+    /**
+     * 歌单导入 - 轮询任务状态。
+     *
+     * @return (status, message, playlistId)。status: 0=完成 1=进行中 2=失败等（以网易云返回为准）
+     */
+    suspend fun importPlaylistStatus(id: String, cookie: String): Triple<Int, String, Long> {
+        val resp = api.playlistImportStatus(id, cookie)
+        val d = resp.data
+        return Triple(d?.status ?: -1, d?.message ?: resp.message, d?.playlistId ?: 0L)
+    }
 
     // ---------- 收藏 ----------
 

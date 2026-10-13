@@ -34,19 +34,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Toplist
+import com.qmusic.ui.components.CoverWithPlaceholder
+import com.qmusic.ui.components.topBarTopPadding
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
-import com.qmusic.ui.components.topBarTopPadding
 
 /** 全部排行榜页（/toplist，63 个榜单），点击进入歌单详情 */
 @Composable
@@ -110,14 +109,13 @@ fun ToplistScreen(
                             modifier = Modifier.clip(RoundedCornerShape(14.dp)).clickable { onOpenPlaylist(toplist.id) },
                         ) {
                             Box {
-                                AsyncImage(
-                                    model = toplist.coverImgUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
+                                CoverWithPlaceholder(
+                                    url = toplist.coverImgUrl,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(160.dp)
                                         .clip(RoundedCornerShape(14.dp)),
+                                    circle = false,
                                 )
                                 Text(
                                     toplist.updateFrequency,

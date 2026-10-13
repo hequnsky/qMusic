@@ -89,8 +89,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.media3.common.Player
-import coil.compose.AsyncImage
 import com.qmusic.R
+import com.qmusic.ui.components.CoverWithPlaceholder
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Song
 import com.qmusic.data.local.DownloadManager
@@ -668,21 +668,13 @@ private fun RotatingDisc(coverUrl: String?, isPlaying: Boolean) {
             Box(
                 Modifier.size(264.dp).clip(CircleShape).rotate(rotation),
             ) {
-                if (!coverUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = coverUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Box(
-                        Modifier.fillMaxSize().background(Brush.linearGradient(listOf(GradientStart, GradientEnd))),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("♪", fontSize = 96.sp, color = Color.White)
-                    }
-                }
+                // 始终先画默认封面（主题渐变 + 音符），仅在真实封面加载成功后覆盖。
+                // URL 缺失 / 加载失败 / 加载中都不会出现「空白圆」。
+                CoverWithPlaceholder(
+                    url = coverUrl,
+                    modifier = Modifier.fillMaxSize(),
+                    circle = true,
+                )
             }
         }
     }

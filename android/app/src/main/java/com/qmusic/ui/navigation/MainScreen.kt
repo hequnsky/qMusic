@@ -39,6 +39,8 @@ import com.qmusic.ui.playlist.PlaylistDetailScreen
 import com.qmusic.ui.playlist.PlaylistSongsScreen
 import com.qmusic.ui.search.SearchScreen
 import com.qmusic.ui.toplist.ToplistScreen
+import com.qmusic.ui.video.VideoFeedScreen
+import com.qmusic.ui.video.VideoFeedScreen
 
 /** 主界面：底部导航 + 页面切换 + 迷你播放条 + 全屏播放页 */
 @Composable
@@ -50,6 +52,7 @@ fun MainScreen(
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var playerOpen by rememberSaveable { mutableStateOf(false) }
+    var videoOpen by rememberSaveable { mutableStateOf(false) }
     var playlistDetailId by rememberSaveable { mutableStateOf<Long?>(null) }
     var hotPlaylistOpen by rememberSaveable { mutableStateOf(false) }
     var toplistOpen by rememberSaveable { mutableStateOf(false) }
@@ -117,6 +120,7 @@ fun MainScreen(
                     },
                     onOpenSearch = { selectedTab = 2 },
                     onOpenMine = { selectedTab = 1 },
+                    onOpenVideo = { videoOpen = true },
                     onOpenPlaylist = { playlistDetailId = it },
                     onOpenMorePlaylists = { hotPlaylistOpen = true },
                     onOpenCategory = { category = it },
@@ -299,6 +303,13 @@ fun MainScreen(
             songName = song.name,
             repository = app.repository,
             onBack = { commentSong = null },
+        )
+    }
+
+    // 类抖音视频页（全屏覆盖层，置于最顶层）
+    if (videoOpen) {
+        VideoFeedScreen(
+            onBack = { videoOpen = false },
         )
     }
 }

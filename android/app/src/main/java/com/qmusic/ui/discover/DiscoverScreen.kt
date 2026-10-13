@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -44,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import coil.compose.AsyncImage
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Playlist
@@ -61,6 +60,7 @@ import com.qmusic.data.model.Song
 import com.qmusic.data.model.Toplist
 import com.qmusic.ui.category.CategorySpec
 import com.qmusic.ui.category.categorySpecOf
+import com.qmusic.ui.components.CoverWithPlaceholder
 import com.qmusic.ui.components.PlaylistCard
 import com.qmusic.ui.components.SectionTitle
 import com.qmusic.ui.components.SongRow
@@ -75,6 +75,7 @@ fun DiscoverScreen(
     onPlayAll: (List<Song>, Int) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenMine: () -> Unit,
+    onOpenVideo: () -> Unit = {},
     onOpenPlaylist: (Long) -> Unit,
     onOpenMorePlaylists: () -> Unit,
     onOpenCategory: (CategorySpec) -> Unit = {},
@@ -100,7 +101,7 @@ fun DiscoverScreen(
         modifier = Modifier.fillMaxSize().background(colors.background),
         contentPadding = PaddingValues(bottom = 16.dp),
     ) {
-        item { TopBar(onOpenSearch = onOpenSearch, onOpenMine = onOpenMine) }
+        item { TopBar(onOpenSearch = onOpenSearch, onOpenMine = onOpenMine, onOpenVideo = onOpenVideo) }
 
         item {
             HeroCard(
@@ -196,7 +197,7 @@ fun DiscoverScreen(
 }
 
 @Composable
-private fun TopBar(onOpenSearch: () -> Unit, onOpenMine: () -> Unit) {
+private fun TopBar(onOpenSearch: () -> Unit, onOpenMine: () -> Unit, onOpenVideo: () -> Unit) {
     val colors = LocalQMusicColors.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
@@ -214,6 +215,9 @@ private fun TopBar(onOpenSearch: () -> Unit, onOpenMine: () -> Unit) {
             Text(stringResource(R.string.app_name), fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
         }
         Spacer(Modifier.weight(1f))
+        IconButton(onClick = onOpenVideo) {
+            Icon(Icons.Filled.PlayCircle, contentDescription = "视频", tint = colors.textPrimary, modifier = Modifier.size(22.dp))
+        }
         IconButton(onClick = onOpenSearch) {
             Icon(Icons.Filled.Search, contentDescription = "搜索", tint = colors.textPrimary, modifier = Modifier.size(22.dp))
         }
@@ -248,22 +252,11 @@ private fun HeroCard(
             modifier = Modifier.fillMaxWidth().padding(18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (playlist != null && !playlist.coverUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = playlist.coverUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(104.dp).clip(RoundedCornerShape(18.dp)),
-                )
-            } else {
-                Box(
-                    modifier = Modifier.size(104.dp).clip(RoundedCornerShape(18.dp))
-                        .background(Color.White.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(if (loading) "…" else "♪", color = Color.White, fontSize = 40.sp)
-                }
-            }
+            CoverWithPlaceholder(
+                url = playlist?.coverUrl,
+                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(18.dp)),
+                circle = false,
+            )
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -358,13 +351,12 @@ private fun ToplistCard(toplist: Toplist, onClick: () -> Unit) {
         modifier = Modifier.width(150.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick),
     ) {
         Box {
-            AsyncImage(
-                model = toplist.coverImgUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+            CoverWithPlaceholder(
+                url = toplist.coverImgUrl,
                 modifier = Modifier
                     .size(width = 150.dp, height = 150.dp)
                     .clip(RoundedCornerShape(14.dp)),
+                circle = false,
             )
             Text(
                 toplist.updateFrequency,

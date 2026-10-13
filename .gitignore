@@ -27,7 +27,6 @@ Thumbs.db
 # ---------- 临时文件 ----------
 *.tmp
 *.bak
-# ���ز�����Ƶ
 prototype/test_local.wav
 
 android/.kotlin/
@@ -35,3 +34,6 @@ android/.kotlin/
 # ---------- 测试临时产物 ----------
 android/testing/dumps/
 android/.build-version
+
+# ---------- WorkBuddy 内部资产（日志/技能，不上公开仓库） ----------
+.workbuddy/
