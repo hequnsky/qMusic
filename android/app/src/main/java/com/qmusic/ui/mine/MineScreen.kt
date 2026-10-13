@@ -107,6 +107,8 @@ fun MineScreen(
     var showThemePicker by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    // 当前服务器地址（切换后同步刷新本页显示，避免停留在旧值）
+    var currentServerUrl by remember { mutableStateOf(ServerConfig.getBaseUrl(context)) }
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -252,7 +254,10 @@ fun MineScreen(
                     .padding(top = 10.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(colors.card)
-                    .clickable { showServerDialog = true }
+                    .clickable {
+                        currentServerUrl = ServerConfig.getBaseUrl(context)
+                        showServerDialog = true
+                    }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -265,7 +270,7 @@ fun MineScreen(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        ServerConfig.getBaseUrl(context),
+                        currentServerUrl,
                         fontSize = 11.sp,
                         color = colors.textSecondary,
                         maxLines = 1,
@@ -351,6 +356,7 @@ fun MineScreen(
                         TextButton(
                             onClick = {
                                 ServerConfig.useOnline(context)
+                                currentServerUrl = ServerConfig.ONLINE_BASE_URL
                                 showServerDialog = false
                                 Toast.makeText(context, R.string.server_switched_online, Toast.LENGTH_SHORT).show()
                             },
@@ -363,7 +369,7 @@ fun MineScreen(
                                 color = GradientStart
                             )
                         }
-                        if (ServerConfig.isOnline(context)) {
+                        if (url.startsWith("https://")) {
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 stringResource(R.string.server_online_active),
@@ -385,6 +391,7 @@ fun MineScreen(
             confirmButton = {
                 TextButton(onClick = {
                     ServerConfig.setBaseUrl(context, url)
+                    currentServerUrl = url
                     showServerDialog = false
                 }) {
                     Text(stringResource(R.string.save), color = GradientStart)
