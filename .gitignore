@@ -33,7 +33,14 @@ android/.kotlin/
 
 # ---------- 测试临时产物 ----------
 android/testing/dumps/
+android/testing/shots/
 android/.build-version
+
+# ---------- 构建产物（源码在库内，二进制本地构建生成） ----------
+server/musiclib-service/qmusic-musiclib.exe
+
+# ---------- 工具会话 ----------
+.playwright-cli/
 
 # ---------- WorkBuddy 内部资产（日志/技能，不上公开仓库） ----------
 .workbuddy/
