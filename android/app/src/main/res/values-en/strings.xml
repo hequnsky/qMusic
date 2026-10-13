@@ -96,6 +96,9 @@
     <!-- Server settings -->
     <string name="server_address">Server Address</string>
     <string name="server_address_hint">On a real device, use your computer\'s LAN IP, e.g. http://192.168.1.100:3000/</string>
+    <string name="server_use_online">Switch to Online Environment</string>
+    <string name="server_online_active">Active</string>
+    <string name="server_switched_online">Switched to online environment</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
 

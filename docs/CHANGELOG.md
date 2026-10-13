@@ -16,6 +16,25 @@
 
 ---
 
+## [1.15] — 2026-10-14
+
+> 新增「线上环境」一键切换：App 可经 Cloudflare 公网隧道访问音乐服务，手机走移动网络/任意 WiFi 均可用，不再局限于局域网。
+
+### ✨ 新增：线上环境一键切换
+
+- **入口**：「我的 → 服务器地址」对话框新增「🌐 一键切换线上环境」按钮，点击即切换并 Toast 提示；处于线上环境时按钮旁显示绿色「已启用」标识。
+- **线上链路**：本机 `:3000` 网关 → Cloudflare Quick Tunnel（HTTPS）→ 公网域名，全链路已验证：网易云搜索、多音源列表/搜索均返回真实数据。
+- **工程配置**：`ServerConfig` 新增 `ONLINE_BASE_URL` 常量与 `useOnline()` / `isOnline()` 方法；原手动输入框保留，可粘贴任意新域名（隧道重启后域名变化时使用）。
+- ⚠️ **注意**：Quick Tunnel 域名随 cloudflared 进程重启而变化，更换后需同步更新 `ServerConfig.ONLINE_BASE_URL`。
+
+### 涉及文件
+
+- `data/local/ServerConfig.kt`：新增 `ONLINE_BASE_URL` / `useOnline()` / `isOnline()`
+- `ui/mine/MineScreen.kt`：服务器地址对话框新增线上环境快捷切换行
+- `res/values/strings.xml`、`res/values-en/strings.xml`：新增 3 条线上环境字符串
+
+---
+
 ## [1.14] — 2026-10-13
 
 > 新增「视频」功能：类抖音竖屏全屏视频信息流，上下滑动切换、自动播放。

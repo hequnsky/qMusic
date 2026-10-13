@@ -45,16 +45,23 @@ async function startNetease() {
 // ---------- 2. 可选：自动拉起 Go 多音源服务 ----------
 function maybeStartMusicLib() {
   if (process.env.MUSICLIB_AUTOSTART !== '1') return
-  const exe = path.join(__dirname, 'musiclib-service', 'qmusic-musiclib.exe')
   const fs = require('fs')
-  if (!fs.existsSync(exe)) {
-    console.warn('[musiclib] 未找到可执行文件，跳过自动启动：', exe)
+  const dir = path.join(__dirname, 'musiclib-service')
+  // 跨平台：Windows 下是 qmusic-musiclib.exe，Linux/macOS 容器里是 qmusic-musiclib
+  const candidates = ['qmusic-musiclib.exe', 'qmusic-musiclib']
+    .map((name) => path.join(dir, name))
+    .filter((p) => fs.existsSync(p))
+  if (candidates.length === 0) {
+    console.warn('[musiclib] 未找到可执行文件，跳过自动启动：', dir)
     return
   }
   try {
-    const child = spawn(exe, [], { stdio: 'inherit', detached: false, cwd: path.dirname(exe) })
+    const exe = candidates[0]
+    // Linux 容器内 COPY --from 会保留可执行位；兜底显式 chmod，防偶发丢权限
+    try { fs.chmodSync(exe, 0o755) } catch (_) { /* Windows 下无意义，忽略 */ }
+    const child = spawn(exe, [], { stdio: 'inherit', detached: false, cwd: dir })
     child.on('error', (e) => console.warn('[musiclib] 启动失败：', e.message))
-    console.log('[musiclib] 已顺带拉起多音源服务 pid=%s', child.pid)
+    console.log('[musiclib] 已顺带拉起多音源服务 pid=%s (%s)', child.pid, path.basename(exe))
   } catch (e) {
     console.warn('[musiclib] 启动异常：', e.message)
   }

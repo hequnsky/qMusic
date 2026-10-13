@@ -1,5 +1,6 @@
 package com.qmusic.ui.mine
 
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -339,6 +340,38 @@ fun MineScreen(
                         fontSize = 12.sp,
                         color = Color.White.copy(alpha = 0.6f),
                     )
+                    Spacer(Modifier.height(8.dp))
+                    // 一键切换线上环境（Cloudflare 隧道 → 本机网关）
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("🌐", fontSize = 14.sp)
+                        Spacer(Modifier.width(6.dp))
+                        TextButton(
+                            onClick = {
+                                ServerConfig.useOnline(context)
+                                showServerDialog = false
+                                Toast.makeText(context, R.string.server_switched_online, Toast.LENGTH_SHORT).show()
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.server_use_online),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = GradientStart
+                            )
+                        }
+                        if (ServerConfig.isOnline(context)) {
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                stringResource(R.string.server_online_active),
+                                fontSize = 11.sp,
+                                color = Color(0xFF4CAF50)
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = url,

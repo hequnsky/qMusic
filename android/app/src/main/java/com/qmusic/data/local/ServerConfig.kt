@@ -16,6 +16,15 @@ object ServerConfig {
     private const val RELEASE_BASE_URL = "http://10.0.2.2:3000/"
 
     /**
+     * 线上环境地址：Cloudflare Quick Tunnel 指向本机 :3000 网关，
+     * 手机走移动网络/任意 WiFi 均可访问（HTTPS，无需配置 network_security_config）。
+     *
+     * ⚠️ Quick Tunnel 域名随 cloudflared 进程重启而变化，更换后需同步更新此常量；
+     * 用户亦可在「我的 → 服务器地址」手动粘贴新域名。
+     */
+    const val ONLINE_BASE_URL = "https://albums-quite-grass-harvest.trycloudflare.com/"
+
+    /**
      * 默认服务地址（按构建类型区分）。
      *
      * 调试统一走 debug 包，其默认地址指向 127.0.0.1 —— 只要在电脑上执行一次
@@ -39,4 +48,11 @@ object ServerConfig {
             .apply()
         ApiClient.updateBaseUrl(normalized)
     }
+
+    /** 一键切换到线上环境（Cloudflare 隧道） */
+    fun useOnline(context: Context) = setBaseUrl(context, ONLINE_BASE_URL)
+
+    /** 当前是否正在使用线上环境 */
+    fun isOnline(context: Context): Boolean =
+        getBaseUrl(context).startsWith("https://")
 }

@@ -5,9 +5,11 @@
 
 | 当前版本 | 更新日志 | APK 产物名 |
 | --- | --- | --- |
-| **1.04** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.04-release.apk` |
+| **1.15** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.15-release.apk` |
 
 ![原型 - 发现页](prototype/screenshots/discover.png)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/hequnsky/qMusic)
 
 ---
 
@@ -75,6 +77,7 @@ adb install -r app/build/outputs/apk/debug/qMusic-*-debug.apk
 - 📚 **全部热门歌单**：发现页「更多 ›」查看并进入任意歌单
 - 📁 **本地音乐**：MediaStore 扫描本地音频 + 运行时权限申请；无本地歌曲时展示内置演示歌曲试听
 - 🌐 **服务器地址可配置**：我的页设置区可切换音乐服务地址（真机填电脑局域网 IP）
+- ☁️ **线上环境一键切换**：「我的 → 服务器地址 → 🌐」经 Cloudflare/Render 公网访问，手机移动网络也能用
 - 🎛️ **分类音乐**：每日推荐/热歌榜/新歌速递/华语/欧美歌曲 + 纯音乐/摇滚/民谣歌单
 - 💬 **歌曲评论**：播放页查看真实歌曲评论
 - 🔥 **实时热搜**：搜索页展示网易云真实热门搜索词，点击即搜
@@ -142,6 +145,43 @@ cd android
 >
 > Android 模拟器访问宿主机服务请使用 `http://10.0.2.2:3000`；
 > 真机调试请将 `app/src/main/res/xml/network_security_config.xml` 中的 `10.0.2.2` 改为电脑局域网 IP。
+
+## 云端部署（线上环境）
+
+后端服务支持两种「公网可达」方式，任选其一：
+
+### 方式一：Render 一键部署（推荐，固定域名）
+
+仓库根目录的 [`render.yaml`](render.yaml) 已配置好 Blueprint，
+点击上方 **Deploy to Render** 按钮 → 授权 → 自动完成构建部署，
+得到固定域名 `https://<name>.onrender.com`。
+
+- 免费实例 15 分钟无访问会休眠，首次唤醒约 50 秒；
+- 多阶段 Docker 构建见 [`server/Dockerfile`](server/Dockerfile)：
+  Go 多音源服务 + Node 网关打进同一镜像，单容器双进程；
+- 网易云接口从 Render 海外节点访问基本可用；若所在网络对 `*.onrender.com` 不通，
+  改用方式二。
+
+### 方式二：Cloudflare 临时隧道（零注册，立即可用）
+
+不想注册 Render 时，本机跑一个隧道即可秒级获得公网 HTTPS 地址：
+
+```bash
+# 下载 cloudflared 后执行（无需注册、无需登录）
+cloudflared tunnel --url http://127.0.0.1:3000
+# 输出 https://<随机>.trycloudflare.com 即线上地址
+```
+
+> ⚠️ Quick Tunnel 域名**进程重启即变**，且无可用性保证，仅适合调试/演示。
+> 域名变化后，在 App「我的 → 服务器地址」粘贴新域名，或同步更新
+> `ServerConfig.ONLINE_BASE_URL`。
+
+### App 端切换
+
+「我的 → 服务器地址 → 🌐 一键切换线上环境」即可切到公网地址，
+手机走移动网络 / 任意 WiFi 都能用（HTTPS，无网络安全配置门槛）。
+
+---
 
 ## 质量保障 · 真机批量功能测试
 

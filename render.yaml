@@ -1,0 +1,30 @@
+# qMusic 后端服务 · Render 一键部署蓝图（Blueprint）
+#
+# 用法：
+#   1. 推送本文件到 GitHub 仓库根目录的 server/ 下
+#   2. Render 控制台 → New → Blueprint → 选择本仓库 → 一键部署
+#   3. 部署完成后获得 https://<name>.onrender.com 固定域名
+#      （免费实例 15 分钟无访问会休眠，首次唤醒约 50 秒）
+#
+# 注意：Render 会为 Web Service 注入 PORT 环境变量（默认 10000），
+#       网关 index.js 已支持 PORT 环境变量，无需额外配置。
+
+services:
+  - type: web
+    name: qmusic-server
+    runtime: docker
+    plan: free
+    region: singapore # 新加坡节点，大陆访问延迟相对最低
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    healthCheckPath: /
+    autoDeployTrigger: commit # 推送代码自动重新部署
+    envVars:
+      - key: NCM_PORT
+        value: "3001"
+      - key: MUSICLIB_AUTOSTART
+        value: "1"
+      - key: MUSICLIB_URL
+        value: http://127.0.0.1:3100
+      - key: MUSICLIB_PORT
+        value: "3100"

@@ -96,6 +96,9 @@
     <!-- 服务器设置 -->
     <string name="server_address">服务器地址</string>
     <string name="server_address_hint">真机请填写电脑局域网 IP，例如 http://192.168.1.100:3000/</string>
+    <string name="server_use_online">一键切换线上环境</string>
+    <string name="server_online_active">已启用</string>
+    <string name="server_switched_online">已切换到线上环境</string>
     <string name="save">保存</string>
     <string name="cancel">取消</string>
 
