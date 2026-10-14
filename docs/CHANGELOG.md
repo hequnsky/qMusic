@@ -16,6 +16,41 @@
 
 ---
 
+## [1.16] — 2026-10-14
+
+> 新增三种播放模式：顺序播放 / 随机播放 / 单曲循环。替代原「列表循环」逻辑（原逻辑播完最后一首会循环回第一首，现顺序播放播完即停）。
+
+### ✨ 新增：播放模式（顺序 / 随机 / 单曲循环）
+
+- **入口**：播放页左下角模式按钮，点击循环切换：顺序播放 → 随机播放 → 单曲循环 → 顺序播放，并 Toast 提示当前模式。
+- **三种模式行为**：
+  - **顺序播放**：按队列顺序播放；当前曲播放结束自动进下一首；**播放到最后一首即停**（不再循环回第一首）。
+  - **随机播放**：当前曲播放结束（或点「下一首」）时从队列随机选一首，尽量不重复当前曲。
+  - **单曲循环**：当前曲播放结束后自动重播（seek 回 0 继续，不重复拉取播放地址）；「下一首」按钮仍可手动切歌。
+- **持久化**：模式选择存入 SharedPreferences（`qmusic_playback`），杀进程重启后保持。
+- **工程配置**：新增 `PlaybackMode` 枚举；`PlayerController` 的 `next()` / `onSongEnded()` 按模式分派；ExoPlayer 自身 `repeatMode` 固定为 OFF（队列是手动 `setMediaItem` 的，避免与单曲循环叠加）；`PlayerUiState.repeatMode` 改为 `playMode`。
+
+### 涉及文件
+
+- `player/PlayerController.kt`：`PlaybackMode` 枚举、`cyclePlayMode()`、`onSongEnded()`、`randomIndex()`、模式持久化
+- `ui/player/PlayerScreen.kt`：模式按钮改为三态图标（播放列表/随机/单曲）+ Toast
+- `ui/player/PlayerViewModel.kt`：`cycleRepeatMode()` → `cyclePlayMode()`
+- `res/values/strings.xml`、`res/values-en/strings.xml`：新增 `play_mode_shuffle`、`play_mode_toast`
+
+### 真机验证（emulator-5554，2026-10-14）
+
+| 验证项 | 结果 |
+| --- | --- |
+| 模式循环切换（顺序→随机→单曲→顺序） | ✅ |
+| 顺序播放：歌末自动下一首 | ✅ |
+| 顺序播放：队尾停止（不循环回第一首） | ✅ |
+| 随机播放：连点 4 次下一首 → 队列 idx 15→8→18→12，无顺序规律且不重复 | ✅ |
+| 随机播放：歌末随机自动续播 | ✅ |
+| 单曲循环：歌末自动重播（进度归零、无新 URL 请求、同一首歌） | ✅ |
+| 杀进程重启后模式保持 | ✅ |
+
+---
+
 ## [1.15] — 2026-10-14
 
 > 新增「线上环境」一键切换：App 可经 Cloudflare 公网隧道访问音乐服务，手机走移动网络/任意 WiFi 均可用，不再局限于局域网。

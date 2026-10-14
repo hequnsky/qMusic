@@ -79,6 +79,8 @@
     <string name="play_mode_order">Sequential</string>
     <string name="play_mode_list">Loop All</string>
     <string name="play_mode_single">Repeat One</string>
+    <string name="play_mode_shuffle">Shuffle</string>
+    <string name="play_mode_toast">Mode: %1$s</string>
     <string name="share">Share</string>
     <string name="timer_off">Sleep Timer</string>
     <string name="share_text">Recommend a song: %1$s - %2$s</string>

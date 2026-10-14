@@ -40,6 +40,18 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.lang.ref.WeakReference
 
+/**
+ * 播放模式：
+ * - [SEQUENTIAL] 顺序播放：按队列顺序播放，播完最后一首即停（不循环）
+ * - [SHUFFLE] 随机播放：播放结束或点「下一首」时从队列随机选一首（尽量不重复当前曲）
+ * - [REPEAT_ONE] 单曲循环：当前歌曲播放结束后自动重播
+ */
+enum class PlaybackMode {
+    SEQUENTIAL,
+    SHUFFLE,
+    REPEAT_ONE,
+}
+
 /** 播放器 UI 状态 */
 data class PlayerUiState(
     val song: Song? = null,
@@ -50,7 +62,7 @@ data class PlayerUiState(
     val lyrics: List<LyricLine> = emptyList(),
     val currentLyricIndex: Int = -1,
     val isFavorite: Boolean = false,
-    val repeatMode: Int = Player.REPEAT_MODE_OFF,
+    val playMode: PlaybackMode = PlaybackMode.SEQUENTIAL,
     val error: String? = null,
 )
 
@@ -78,8 +90,20 @@ class PlayerController(
     private var artworkSongId: Long? = null
     private var mediaSession: MediaSessionCompat? = null
 
+    /** 播放模式持久化（重启 App 后保持上次选择） */
+    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
     init {
         setupMediaSession()
+        val saved = prefs.getString(KEY_PLAY_MODE, null)?.let { name ->
+            runCatching { PlaybackMode.valueOf(name) }.getOrNull()
+        }
+        _uiState.update { it.copy(playMode = saved ?: PlaybackMode.SEQUENTIAL) }
+    }
+
+    companion object {
+        private const val PREFS = "qmusic_playback"
+        private const val KEY_PLAY_MODE = "play_mode"
     }
 
     /** 注册系统媒体会话（状态栏媒体控制：显示歌曲、封面、上一首/播放/下一首） */
@@ -242,8 +266,18 @@ class PlayerController(
         val queue = state.queue
         if (queue.isEmpty()) return
         val idx = queue.indexOfFirst { it.id == state.song?.id }
-        val next = if (idx >= 0) (idx + 1) % queue.size else 0
-        play(queue, next)
+        val target = when (state.playMode) {
+            PlaybackMode.SEQUENTIAL -> {
+                // 顺序播放：到最后一首即停，不循环、不随机
+                if (idx < 0) 0 else (idx + 1).takeIf { it < queue.size } ?: return
+            }
+            PlaybackMode.SHUFFLE -> randomIndex(queue.size, idx)
+            PlaybackMode.REPEAT_ONE -> {
+                // 单曲循环下「下一首」是手动切歌，按队列顺序走到下一首（末尾回到第一首）
+                if (idx >= 0) (idx + 1) % queue.size else 0
+            }
+        }
+        play(queue, target)
     }
 
     fun prev() {
@@ -267,17 +301,54 @@ class PlayerController(
         player?.seekTo(ms)
     }
 
-    /** 循环切换播放模式：顺序播放 -> 列表循环 -> 单曲循环 */
-    fun cycleRepeatMode() {
-        val exo = getPlayer()
-        val next = when (exo.repeatMode) {
-            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
-            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
-            else -> Player.REPEAT_MODE_OFF
+    /** 循环切换播放模式：顺序播放 -> 随机播放 -> 单曲循环 */
+    fun cyclePlayMode() {
+        val next = when (_uiState.value.playMode) {
+            PlaybackMode.SEQUENTIAL -> PlaybackMode.SHUFFLE
+            PlaybackMode.SHUFFLE -> PlaybackMode.REPEAT_ONE
+            PlaybackMode.REPEAT_ONE -> PlaybackMode.SEQUENTIAL
         }
-        exo.repeatMode = next
-        _uiState.update { it.copy(repeatMode = next) }
+        prefs.edit().putString(KEY_PLAY_MODE, next.name).apply()
+        _uiState.update { it.copy(playMode = next) }
         updateNotification()
+    }
+
+    /** 从队列中随机取一个下标；队列非空且当前曲在队列内时，尽量不重复当前曲 */
+    private fun randomIndex(size: Int, current: Int): Int {
+        if (size <= 1) return 0
+        var r = (0 until size).random()
+        while (r == current) r = (0 until size).random()
+        return r
+    }
+
+    /** 当前歌曲播放结束：按播放模式决定下一步 */
+    private fun onSongEnded() {
+        val state = _uiState.value
+        val queue = state.queue
+        if (queue.isEmpty()) return
+        val idx = queue.indexOfFirst { it.id == state.song?.id }
+        when (state.playMode) {
+            PlaybackMode.REPEAT_ONE -> {
+                // 单曲循环：重播当前歌曲（seek 回 0 继续播，避免重复拉取播放地址）
+                val exo = player
+                if (exo != null) {
+                    exo.seekTo(0)
+                    exo.play()
+                    _uiState.update { it.copy(positionMs = 0, isPlaying = true) }
+                } else if (idx >= 0) {
+                    play(queue, idx)
+                }
+            }
+            PlaybackMode.SHUFFLE -> next()
+            PlaybackMode.SEQUENTIAL -> {
+                // 顺序播放：还有下一首就继续，否则停在最后一首（不循环）
+                if (idx in 0 until queue.lastIndex) {
+                    play(queue, idx + 1)
+                } else {
+                    _uiState.update { it.copy(isPlaying = false, positionMs = 0) }
+                }
+            }
+        }
     }
 
     fun stop() {
@@ -300,6 +371,9 @@ class PlayerController(
     private fun getPlayer(): ExoPlayer =
         player ?: ExoPlayer.Builder(context).build().also { exo ->
             player = exo
+            // 播放模式由 PlayerController 自行管理（队列是手动 setMediaItem 的），
+            // ExoPlayer 自身的 repeatMode 保持关闭，避免与单曲循环逻辑叠加
+            exo.repeatMode = Player.REPEAT_MODE_OFF
             exo.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _uiState.update { it.copy(isPlaying = isPlaying) }
@@ -312,10 +386,10 @@ class PlayerController(
                     if (playbackState == Player.STATE_READY) {
                         val d = exo.duration
                         if (d > 0) _uiState.update { it.copy(durationMs = d) }
-                    } else if (playbackState == Player.STATE_ENDED) {
-                        // 单曲播放完毕，自动继续播放队列中的下一首
-                        next()
-                    }
+                } else if (playbackState == Player.STATE_ENDED) {
+                    // 当前歌曲播放完毕：按播放模式决定（重播 / 随机 / 顺序继续或停止）
+                    onSongEnded()
+                }
                 }
 
                 override fun onPlayerError(error: PlaybackException) {

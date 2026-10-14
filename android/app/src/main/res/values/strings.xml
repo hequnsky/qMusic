@@ -79,6 +79,8 @@
     <string name="play_mode_order">顺序播放</string>
     <string name="play_mode_list">列表循环</string>
     <string name="play_mode_single">单曲循环</string>
+    <string name="play_mode_shuffle">随机播放</string>
+    <string name="play_mode_toast">播放模式：%1$s</string>
     <string name="share">分享</string>
     <string name="timer_off">定时关闭</string>
     <string name="share_text">推荐歌曲：%1$s - %2$s</string>

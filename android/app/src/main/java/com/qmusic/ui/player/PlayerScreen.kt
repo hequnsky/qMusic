@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -40,9 +41,9 @@ import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Timer
@@ -88,13 +89,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.media3.common.Player
 import com.qmusic.R
 import com.qmusic.ui.components.CoverWithPlaceholder
 import com.qmusic.data.MusicRepository
 import com.qmusic.data.model.Song
 import com.qmusic.data.local.DownloadManager
 import com.qmusic.player.PlayerController
+import com.qmusic.player.PlaybackMode
 import com.qmusic.player.PlayerUiState
 import com.qmusic.ui.components.SongCover
 import com.qmusic.ui.components.formatDuration
@@ -367,18 +368,36 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = { viewModel.cycleRepeatMode() }) {
+                    // 播放模式：顺序播放 -> 随机播放 -> 单曲循环
+                    val context = LocalContext.current
+                    IconButton(onClick = {
+                        viewModel.cyclePlayMode()
+                        // 提示切换「后」的模式（cyclePlayMode 内部已立即更新状态）
+                        val nextLabel = when (state.playMode) {
+                            PlaybackMode.SEQUENTIAL -> R.string.play_mode_shuffle
+                            PlaybackMode.SHUFFLE -> R.string.play_mode_single
+                            PlaybackMode.REPEAT_ONE -> R.string.play_mode_order
+                        }
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.play_mode_toast, context.getString(nextLabel)),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }) {
                         Icon(
-                            if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                            contentDescription = when (state.repeatMode) {
-                                Player.REPEAT_MODE_ONE -> stringResource(R.string.play_mode_single)
-                                Player.REPEAT_MODE_ALL -> stringResource(R.string.play_mode_list)
-                                else -> stringResource(R.string.play_mode_order)
+                            when (state.playMode) {
+                                PlaybackMode.SEQUENTIAL -> Icons.AutoMirrored.Filled.PlaylistPlay
+                                PlaybackMode.SHUFFLE -> Icons.Filled.Shuffle
+                                PlaybackMode.REPEAT_ONE -> Icons.Filled.RepeatOne
                             },
-                            tint = if (state.repeatMode == Player.REPEAT_MODE_OFF) {
-                                Color.White.copy(alpha = 0.5f)
-                            } else {
-                                GradientStart
+                            contentDescription = when (state.playMode) {
+                                PlaybackMode.SEQUENTIAL -> stringResource(R.string.play_mode_order)
+                                PlaybackMode.SHUFFLE -> stringResource(R.string.play_mode_shuffle)
+                                PlaybackMode.REPEAT_ONE -> stringResource(R.string.play_mode_single)
+                            },
+                            tint = when (state.playMode) {
+                                PlaybackMode.SEQUENTIAL -> Color.White.copy(alpha = 0.5f)
+                                else -> GradientStart
                             },
                             modifier = Modifier.size(22.dp),
                         )
