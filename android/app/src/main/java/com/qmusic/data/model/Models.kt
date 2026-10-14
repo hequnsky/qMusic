@@ -252,24 +252,17 @@ data class HotDetailItem(
     val content: String = "",
 )
 
-/** 网易云二维码登录 */
+/**
+ * 网易云手机号登录（/login/cellphone）。
+ * 服务端 login_cellphone 模块在 code=200 时把 cookie join 后放在 body.cookie，
+ * profile 含 userId / nickname / avatarUrl。
+ */
 @Serializable
-data class QrKeyResponse(val data: QrKeyData = QrKeyData())
-
-@Serializable
-data class QrKeyData(val unikey: String = "")
-
-@Serializable
-data class QrCreateResponse(val data: QrCreateData = QrCreateData())
-
-@Serializable
-data class QrCreateData(val qrimg: String = "", val qrurl: String = "")
-
-@Serializable
-data class QrCheckResponse(
+data class LoginCellphoneResponse(
     val code: Int = 0,
     val message: String = "",
     val cookie: String? = null,
+    val profile: UserProfile? = null,
 )
 
 /** 用户账号 */

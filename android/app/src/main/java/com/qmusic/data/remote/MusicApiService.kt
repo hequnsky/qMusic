@@ -2,6 +2,7 @@ package com.qmusic.data.remote
 
 import com.qmusic.data.model.CommentResponse
 import com.qmusic.data.model.LyricResponse
+import com.qmusic.data.model.LoginCellphoneResponse
 import com.qmusic.data.model.MultiLyricResponse
 import com.qmusic.data.model.MultiSearchResponse
 import com.qmusic.data.model.MultiSongUrlResponse
@@ -10,9 +11,6 @@ import com.qmusic.data.model.PersonalizedResponse
 import com.qmusic.data.model.PlaylistImportResponse
 import com.qmusic.data.model.PlaylistImportStatusResponse
 import com.qmusic.data.model.PlaylistDetailResponse
-import com.qmusic.data.model.QrCheckResponse
-import com.qmusic.data.model.QrCreateResponse
-import com.qmusic.data.model.QrKeyResponse
 import com.qmusic.data.model.SearchHotDetailResponse
 import com.qmusic.data.model.SearchHotResponse
 import com.qmusic.data.model.SearchResponse
@@ -67,20 +65,16 @@ interface MusicApiService {
 
     // ---------- 网易云账号登录 ----------
 
-    /** 二维码 key */
-    @GET("login/qr/key")
-    suspend fun qrKey(): QrKeyResponse
-
-    /** 生成二维码（返回 base64 data URI） */
-    @GET("login/qr/create")
-    suspend fun qrCreate(
-        @Query("key") key: String,
-        @Query("qrimg") qrimg: Boolean = true,
-    ): QrCreateResponse
-
-    /** 轮询扫码状态（Response 包装以读取 Set-Cookie） */
-    @GET("login/qr/check")
-    suspend fun qrCheck(@Query("key") key: String): Response<QrCheckResponse>
+    /**
+     * 手机号登录（网易云 weapi）。
+     * 明文密码由服务端 login_cellphone 模块负责 MD5；
+     * Response 包装以便登录失败（非 2xx）时也能读取 body。
+     */
+    @GET("login/cellphone")
+    suspend fun loginCellphone(
+        @Query("phone") phone: String,
+        @Query("password") password: String,
+    ): Response<LoginCellphoneResponse>
 
     /** 当前登录账号 */
     @GET("user/account")

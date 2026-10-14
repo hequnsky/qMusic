@@ -16,6 +16,77 @@
 
 ---
 
+## [1.17] — 2026-10-14
+
+> 登录方式改造（移除二维码，改手机号 + 密码）、登录页穿透点击修复、主题新增「暗夜黑」且选择面板改为等大框滑动列表、播放页图标重绘、重命名弹框自动聚焦、全页面虚拟返回键 inset 适配。
+
+### 1. 移除二维码登录，改手机号 + 密码登录
+
+- **根因/背景**：原二维码登录依赖「手机网易云 App 扫码」第二台设备，模拟器/无网易云 App 的用户无法登录；且轮询链路长（getQrKey → createQr → 每 2s checkQr）。
+- **改法**：改用网易云 weapi 网页云接口 `/login/cellphone`（服务端 `login_cellphone` 模块负责 MD5，失败时返回网易云原始错误信息）。App 侧新增 `MusicApiService.loginCellphone` / `MusicRepository.loginCellphone`，删除全部二维码链路（`qrKey` / `qrCreate` / `qrCheck` 及 `QrKeyResponse` 等 5 个数据模型）。登录成功后仍走 `user/account` 回填 userId。
+- **UI**：登录页重写为「手机号 + 密码」表单：11 位数字过滤、密码视觉变换、软键盘 Done 直接提交、错误红字 + 输入框 supportingText、登录中转圈。
+
+### 2. 修复登录页还能点到「我的」页底部按钮
+
+- **根因**：登录页原本是 `MineScreen` 内容区里的普通 `Column`，而底部导航栏在外层 `MainScreen` 的 `Scaffold(bottomBar=)` 上、z 序更高——登录页根本盖不住它，底部「发现 / 播放 / 我的」照常可点。
+- **改法**：登录页改为**全屏 Dialog** 包裹打开（`Dialog(properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false))`）。Dialog 是独立 window，天然覆盖底部栏；系统返回键也会先关掉登录页而不是切走 tab。
+
+### 3. 主题：新增「暗夜黑」+ 等大主题框滑动列表
+
+- `ThemeStyle` 新增 `AMOLED("amoled", "暗夜黑")`：近纯黑背景（`#050507`）/ 卡片（`#101015`）专用配色 `AmoledQMusicColors`，OLED 屏更省电；强调色为中性银灰，与现有 5 套彩色深色主题区分。
+- 主题选择面板（`ThemePickerDialog`）重写：每个主题框**固定 72dp 等高**（缩略图 44×56 固定尺寸），7 套主题一屏放不下时整列 `LazyColumn` 滑动；预览图对「暗夜黑」同步用近纯黑背景。
+
+### 4. 播放页图标重绘
+
+- **顺序播放按钮**：原 `PlaylistPlay` 图标与右侧「播放列表」（`QueueMusic`）过于相似、语义不明确 → 自绘 `res/drawable/ic_play_order.xml`（左侧三条渐短横线 = 列表，右下实心三角 = 播放），与随机 / 单曲循环形成明确区分。
+- **底部操作行**：评论 / 下载 / 歌单 / 更多 原先用 emoji「•」占位 → 全部换成矢量图标（Comment / Download / PlaylistAdd / MoreHoriz），喜欢项用 Favorite / FavoriteBorder 描边-实心切换；`BottomActionItem` 的 `icon` 参数由 `String`(emoji) 改为 `ImageVector`。
+
+### 5. 重命名歌单弹框自动获取焦点
+
+- 重命名 / 新建歌单对话框的 `OutlinedTextField` 加 `FocusRequester` + `LaunchedEffect { withFrameNanos{}; requestFocus(); showKeyboard() }`（延迟一帧避开 Dialog window 焦点竞争）；请求失败时静默降级——输入框外框始终可见，点击即可输入。
+
+### 6. 全页面虚拟返回键 inset 适配
+
+- **视频页**（`VideoFeedScreen`）：底部作者信息原先 `bottom = 28.dp` 直接贴屏幕底，会被虚拟返回键区域压住 → 作者信息与右侧竖排操作栏均加 `navigationBarsPadding()`；视频画面本身保持全屏铺满。
+- **登录页**：根 `Column` 加 `navigationBarsPadding() + imePadding()`（Dialog 窗口不会自动避开导航栏）。
+- 其余二级页（播放页/歌词页/评论/下载/歌单/排行榜/分类/本地音乐等）此前已带 inset，本次全量核对无遗漏；底部导航栏（`QMusicBottomBar`）沿用 `Surface(navigationBarsPadding)`。
+
+### 涉及文件
+
+- `ui/mine/LoginScreen.kt`：重写为手机号 + 密码登录（删除二维码轮询/AsyncImage）
+- `ui/mine/MineScreen.kt`：登录 Dialog 包裹；`ThemePickerDialog` 等大框 + LazyColumn；`ThemePreview` 适配暗夜黑
+- `data/remote/MusicApiService.kt`：删 3 个二维码接口，新增 `loginCellphone`
+- `data/MusicRepository.kt`：删 3 个二维码方法，新增 `loginCellphone`（含 Set-Cookie 兜底）
+- `data/model/Models.kt`：删 5 个二维码模型，新增 `LoginCellphoneResponse`
+- `ui/theme/Theme.kt`：`AMOLED` 主题 + `AmoledQMusicColors`
+- `res/drawable/ic_play_order.xml`：自绘顺序播放图标
+- `ui/player/PlayerScreen.kt`：模式图标与底部操作行图标重绘
+- `ui/playlist/MyPlaylistsScreen.kt`、`ui/playlist/AddToPlaylistSheet.kt`：弹框自动聚焦
+- `ui/video/VideoFeedScreen.kt`：底部 inset 适配
+- `res/values/strings.xml`、`res/values-en/strings.xml`：登录文案替换
+
+### 真机验证（emulator-5554，2026-10-14，debug 包）
+
+| 验证项 | 结果 |
+| --- | --- |
+| 登录页全屏 Dialog：底部导航栏消失 | ✅ |
+| 登录页打开后连点原底部三个 tab 位置 → 不穿透、页面不切换 | ✅ |
+| 登录页按系统返回键 → 关闭登录页回到「我的」页（不切 tab） | ✅ |
+| 手机号 + 密码填写、密码圆点遮蔽、键盘弹出、imePadding 顶起 | ✅ |
+| 手机号不足 11 位点登录 → supportingText「请输入 11 位手机号」 | ✅ |
+| 错误密码登录 → 服务端返回「账号或密码错误」原样展示（非 HTTP 码） | ✅ |
+| 主题面板：7 套主题等大 72dp 框、超出可滑动 | ✅ |
+| 「暗夜黑」选中生效：近纯黑背景、主题卡片显示「暗夜黑」 | ✅ |
+| 播放页：顺序播放自绘图标（列表三横线+播放三角）与播放列表按钮明确区分 | ✅ |
+| 播放页：喜欢/评论/下载/歌单/更多 5 个矢量图标全部渲染 | ✅ |
+| 新建歌单弹框：打开即聚焦 + 键盘自动弹出 | ✅ |
+| 重命名歌单弹框：打开即聚焦 + 键盘自动弹出、原名预填、外框常显 | ✅ |
+| 重命名保存生效（列表刷新） | ✅ |
+| 视频页：底部作者信息/右侧操作栏抬到虚拟返回键之上，视频画面仍全屏 | ✅ |
+| 全页面核对 inset：播放页/歌词页/评论/下载/歌单/排行榜/分类/本地音乐均已有 navigationBarsPadding | ✅ |
+
+---
+
 ## [1.16] — 2026-10-14
 
 > 新增三种播放模式：顺序播放 / 随机播放 / 单曲循环。替代原「列表循环」逻辑（原逻辑播完最后一首会循环回第一首，现顺序播放播完即停）。

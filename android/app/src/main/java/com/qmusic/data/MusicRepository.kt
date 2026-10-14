@@ -12,6 +12,7 @@ import com.qmusic.data.model.Album
 import com.qmusic.data.model.Artist
 import com.qmusic.data.model.Comment
 import com.qmusic.data.model.HotDetailItem
+import com.qmusic.data.model.LoginCellphoneResponse
 import com.qmusic.data.model.Toplist
 import com.qmusic.data.model.UserDetailProfile
 import com.qmusic.data.model.UserProfile
@@ -24,6 +25,8 @@ import com.qmusic.data.model.Song
 import com.qmusic.data.remote.MusicApiService
 import com.qmusic.util.LrcParser
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.Json
+import retrofit2.Response
 
 /** 数据仓库：统一聚合远程音乐接口与本地收藏/历史 */
 class MusicRepository(
@@ -142,23 +145,34 @@ class MusicRepository(
 
     // ---------- 网易云账号登录 ----------
 
-    /** 获取二维码 key */
-    suspend fun getQrKey(): String = api.qrKey().data.unikey
-
-    /** 生成登录二维码，返回 (base64 图片, 二维码链接) */
-    suspend fun createQr(key: String): Pair<String, String> {
-        val d = api.qrCreate(key, true).data
-        return d.qrimg to d.qrurl
-    }
-
-    /** 轮询二维码状态，返回 (code, cookie)。code: 801=等待扫码 802=待确认 803=登录成功 800=过期 */
-    suspend fun checkQr(key: String): Pair<Int, String> {
-        val resp = api.qrCheck(key)
+    /**
+     * 手机号登录（网易云 weapi，明文密码由服务端 MD5）。
+     * 成功返回 cookie；失败抛 IllegalStateException（优先带网易云返回的错误信息，
+     * 如「账号或密码错误」——它在 errorBody 里，非 2xx 时 body() 为 null）。
+     */
+    suspend fun loginCellphone(phone: String, password: String): String {
+        val resp = api.loginCellphone(phone.trim(), password)
         var cookie = resp.body()?.cookie ?: ""
         if (cookie.isBlank()) {
             cookie = resp.headers()["Set-Cookie"] ?: resp.raw().header("Set-Cookie") ?: ""
         }
-        return (resp.body()?.code ?: -1) to cookie
+        val body = resp.body()
+        if (resp.isSuccessful && body != null && body.code == 200 && cookie.isNotBlank()) {
+            return cookie
+        }
+        // 失败原因：先看 2xx body.message，再解析 errorBody（网易云把「账号或密码错误」放在这里）
+        val msg = body?.message?.takeIf { it.isNotBlank() }
+            ?: resp.errorBody()?.string()?.let { raw ->
+                try {
+                    Json { ignoreUnknownKeys = true }
+                        .decodeFromString<LoginCellphoneResponse>(raw).message
+                        .takeIf { it.isNotBlank() }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            ?: "登录失败（HTTP ${resp.code()}）"
+        throw IllegalStateException(msg)
     }
 
     /** 登录后获取账号信息 */

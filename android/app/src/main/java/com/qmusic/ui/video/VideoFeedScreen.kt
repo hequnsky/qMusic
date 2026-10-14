@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -309,9 +310,11 @@ private fun VideoPage(
         }
 
         // 右侧操作栏（点赞/评论/分享/收藏）
+        // navigationBarsPadding：虚拟返回键存在时，竖排最后一个元素不被导航栏盖住
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
+                .navigationBarsPadding()
                 .padding(end = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -355,10 +358,13 @@ private fun VideoPage(
         }
 
         // 底部作者信息
+        // navigationBarsPadding：有虚拟返回键时把文案整体抬到导航栏之上，
+        // 否则标题/描述会被系统返回键区域压住（用户反馈「视频页底部有内容被挡」）
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(start = 12.dp, end = 76.dp, bottom = 28.dp),
         ) {
             Text(

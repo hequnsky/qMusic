@@ -33,13 +33,18 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -204,16 +209,33 @@ fun MyPlaylistsScreen(
     // 重命名对话框
     renameTarget?.let { (id, current) ->
         var text by remember(id) { mutableStateOf(current) }
+        // 打开即让输入框获得焦点并弹出软键盘。
+        // Dialog 刚弹出时 window 还没拿到焦点，直接 requestFocus 可能被吞掉，
+        // 这里延迟一帧再请求；万一仍失败也不影响使用 —— OutlinedTextField
+        // 本身就有外框，点击即可输入（外框始终可见，不会出现「看不见输入框」）。
+        val focusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
         AlertDialog(
             onDismissRequest = { renameTarget = null },
             title = { Text("重命名歌单", fontSize = 16.sp) },
             text = {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { if (it.length <= 30) text = it },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column {
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { if (it.length <= 30) text = it },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                    )
+                    LaunchedEffect(Unit) {
+                        withFrameNanos { }
+                        try {
+                            focusRequester.requestFocus()
+                            keyboardController?.show()
+                        } catch (_: Exception) {
+                            // 获取焦点失败时静默降级：输入框外框常显，用户点一下即可输入
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(

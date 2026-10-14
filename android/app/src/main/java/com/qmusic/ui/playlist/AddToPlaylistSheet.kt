@@ -32,9 +32,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -227,6 +231,9 @@ fun CreatePlaylistDialog(
 ) {
     var name by remember { mutableStateOf("") }
     val valid = name.isNotBlank()
+    // 打开即聚焦并弹出软键盘（延迟一帧等 Dialog window 拿到焦点，失败则静默降级）
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("新建歌单", fontSize = 16.sp) },
@@ -237,8 +244,17 @@ fun CreatePlaylistDialog(
                     onValueChange = { if (it.length <= 30) name = it },
                     placeholder = { Text("给歌单起个名字", fontSize = 13.sp) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 )
+                LaunchedEffect(Unit) {
+                    withFrameNanos { }
+                    try {
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    } catch (_: Exception) {
+                        // 拿不到焦点也不影响：输入框外框常显，点击即可输入
+                    }
+                }
             }
         },
         confirmButton = {

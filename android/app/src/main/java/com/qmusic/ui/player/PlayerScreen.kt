@@ -32,14 +32,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Share
@@ -80,6 +84,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import java.util.concurrent.atomic.AtomicLong
@@ -297,46 +302,62 @@ fun PlayerScreen(
             ) {
                 BottomActionItem(
                     label = if (state.isFavorite) "已喜欢" else "喜欢",
-                    icon = if (state.isFavorite) "❤️" else "🤍",
+                    icon = if (state.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     labelColor = if (state.isFavorite) Accent else Color.White.copy(alpha = 0.7f),
                     onClick = { viewModel.toggleFavorite() },
                 )
-                BottomActionItem(label = "评论", onClick = { state.song?.let(onOpenComment) })
-                BottomActionItem(label = "下载", onClick = {
-                    val song = state.song ?: return@BottomActionItem
-                    when {
-                        DownloadManager.isDownloading(song.id) -> {
-                            Toast.makeText(context, R.string.downloading, Toast.LENGTH_SHORT).show()
-                        }
-                        DownloadManager.isDownloaded(context, song.id) -> {
-                            Toast.makeText(context, R.string.downloaded, Toast.LENGTH_SHORT).show()
-                        }
-                        else -> {
-                            Toast.makeText(context, R.string.download_started, Toast.LENGTH_SHORT).show()
-                            scope.launch {
-                                val url = try {
-                                    repository.getSongUrl(song)
-                                } catch (e: Exception) {
-                                    null
-                                }
-                                if (url.isNullOrBlank()) {
-                                    Toast.makeText(context, R.string.download_failed, Toast.LENGTH_SHORT).show()
-                                } else {
-                                    val ok = DownloadManager.download(context, song, url)
-                                    Toast.makeText(
-                                        context,
-                                        if (ok) R.string.download_finished else R.string.download_failed,
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
+                BottomActionItem(
+                    label = "评论",
+                    icon = Icons.Filled.Comment,
+                    onClick = { state.song?.let(onOpenComment) },
+                )
+                BottomActionItem(
+                    label = "下载",
+                    icon = Icons.Filled.Download,
+                    onClick = {
+                        val song = state.song ?: return@BottomActionItem
+                        when {
+                            DownloadManager.isDownloading(song.id) -> {
+                                Toast.makeText(context, R.string.downloading, Toast.LENGTH_SHORT).show()
+                            }
+                            DownloadManager.isDownloaded(context, song.id) -> {
+                                Toast.makeText(context, R.string.downloaded, Toast.LENGTH_SHORT).show()
+                            }
+                            else -> {
+                                Toast.makeText(context, R.string.download_started, Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    val url = try {
+                                        repository.getSongUrl(song)
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+                                    if (url.isNullOrBlank()) {
+                                        Toast.makeText(context, R.string.download_failed, Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        val ok = DownloadManager.download(context, song, url)
+                                        Toast.makeText(
+                                            context,
+                                            if (ok) R.string.download_finished else R.string.download_failed,
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
                                 }
                             }
                         }
-                    }
-                })
-                BottomActionItem(label = "歌单", onClick = {
-                    if (state.song != null) showAddToPlaylist = true
-                })
-                BottomActionItem(label = "更多", onClick = { showMore = true })
+                    },
+                )
+                BottomActionItem(
+                    label = "歌单",
+                    icon = Icons.Filled.PlaylistAdd,
+                    onClick = {
+                        if (state.song != null) showAddToPlaylist = true
+                    },
+                )
+                BottomActionItem(
+                    label = "更多",
+                    icon = Icons.Filled.MoreHoriz,
+                    onClick = { showMore = true },
+                )
             }
 
             // 进度与控制（位于快捷操作行之下）
@@ -370,6 +391,9 @@ fun PlayerScreen(
                 ) {
                     // 播放模式：顺序播放 -> 随机播放 -> 单曲循环
                     val context = LocalContext.current
+                    // 顺序播放用自绘图标（列表三横线 + 播放三角），
+                    // 与右侧「播放列表」按钮（音符+列表）明确区分
+                    val playOrderIcon = ImageVector.vectorResource(R.drawable.ic_play_order)
                     IconButton(onClick = {
                         viewModel.cyclePlayMode()
                         // 提示切换「后」的模式（cyclePlayMode 内部已立即更新状态）
@@ -386,7 +410,7 @@ fun PlayerScreen(
                     }) {
                         Icon(
                             when (state.playMode) {
-                                PlaybackMode.SEQUENTIAL -> Icons.AutoMirrored.Filled.PlaylistPlay
+                                PlaybackMode.SEQUENTIAL -> playOrderIcon
                                 PlaybackMode.SHUFFLE -> Icons.Filled.Shuffle
                                 PlaybackMode.REPEAT_ONE -> Icons.Filled.RepeatOne
                             },
@@ -990,14 +1014,14 @@ private fun MenuIcon(icon: ImageVector) {
 /**
  * 底部快捷操作项（图标 + 文字上下排列）。
  *
- * @param icon       上方小图标；默认是中性圆点，可传 emoji（如喜欢项的 🤍/❤️）
- * @param labelColor 文字颜色；喜欢项在「已喜欢」时用主题强调色
+ * @param icon       上方图标（矢量图，跟随 labelColor 着色）
+ * @param labelColor 图标与文字颜色；喜欢项在「已喜欢」时用主题强调色
  */
 @Composable
 private fun BottomActionItem(
     label: String,
     onClick: () -> Unit,
-    icon: String = "•",
+    icon: ImageVector,
     labelColor: Color = Color.White.copy(alpha = 0.7f),
 ) {
     Column(
@@ -1007,8 +1031,13 @@ private fun BottomActionItem(
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 2.dp),
     ) {
-        Text(icon, fontSize = 16.sp, color = labelColor)
-        Spacer(Modifier.height(2.dp))
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = labelColor,
+            modifier = Modifier.size(19.dp),
+        )
+        Spacer(Modifier.height(3.dp))
         Text(label, fontSize = 10.5.sp, color = labelColor)
     }
 }

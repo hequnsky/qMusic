@@ -114,11 +114,15 @@
     <string name="download_failed">Download failed</string>
     <string name="delete">Delete</string>
 
-    <!-- NetEase Cloud Music login -->
+    <!-- NetEase Cloud Music login (phone + password, weapi /login/cellphone) -->
     <string name="login">Sign In</string>
-    <string name="login_desc">Scan with NetEase Cloud Music App to sign in\nSync follows / fans / likes</string>
-    <string name="login_generating">Generating QR code…</string>
-    <string name="login_failed">Failed to load QR code. Check your network.</string>
+    <string name="login_desc">Sign in with your NetEase account\nSync playlists / follows / fans / likes</string>
+    <string name="login_phone">Phone</string>
+    <string name="login_phone_hint">11-digit phone number</string>
+    <string name="login_phone_invalid">Enter an 11-digit phone number</string>
+    <string name="login_password">Password</string>
+    <string name="login_password_empty">Enter your password</string>
+    <string name="login_submit">Sign In</string>
     <string name="login_scan_hint">Used only to show public profile info. Your private data stays safe.</string>
     <string name="logout">Sign Out</string>
 

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  顺序播放（自绘）：
+  左侧三条渐短横线表示「列表/队列」，右下实心三角表示「播放」。
+  与「播放列表」按钮（QueueMusic，音符+列表）、「单曲循环」（RepeatOne，循环箭头）
+  形成明确视觉区分 —— 原 PlaylistPlay 图标与播放列表过于相似，用户反馈不明确。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 列表：三条横线（上长 / 中短 / 下长） -->
+    <path
+        android:pathData="M3,6.5h10"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M3,12h7"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M3,17.5h10"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- 右下播放三角 -->
+    <path
+        android:pathData="M14.5,13.5L14.5,20.5L21,17Z"
+        android:fillColor="#FFFFFFFF" />
+</vector>

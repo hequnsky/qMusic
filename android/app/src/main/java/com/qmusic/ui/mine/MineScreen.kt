@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -58,6 +60,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -410,16 +414,30 @@ fun MineScreen(
         ThemePickerDialog(onDismiss = { showThemePicker = false })
     }
 
-    // 网易云二维码登录
+    // 网易云账号登录（手机号 + 密码）
+    //
+    // 用全屏 Dialog 包裹而不是直接内嵌渲染：MineScreen 自身只是 Scaffold 的
+    // content 区，底部导航栏在外层 Scaffold 的 bottomBar 上、z 序更高，
+    // 内嵌登录页时底部「发现 / 播放 / 我的」仍然能点到（用户反馈的 bug）。
+    // Dialog 是独立 window，天然覆盖底部栏；系统返回键也会先关掉它。
     if (showLogin) {
-        LoginScreen(
-            repository = repository,
-            onBack = { showLogin = false },
-            onLoginSuccess = { cookie, uid ->
-                viewModel.applyLogin(cookie, uid)
-                showLogin = false
-            },
-        )
+        Dialog(
+            onDismissRequest = { showLogin = false },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = false,
+            ),
+        ) {
+            LoginScreen(
+                repository = repository,
+                onBack = { showLogin = false },
+                onLoginSuccess = { cookie, uid ->
+                    viewModel.applyLogin(cookie, uid)
+                    showLogin = false
+                },
+            )
+        }
     }
 
     // 导入歌单
@@ -442,42 +460,20 @@ private fun ThemePickerDialog(onDismiss: () -> Unit) {
             Text("选择主题", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ThemeStyle.entries.forEach { style ->
-                    val selected = style == controller.current
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                if (selected) Color.White.copy(alpha = 0.12f)
-                                else Color.White.copy(alpha = 0.04f),
-                            )
-                            .clickable {
-                                controller.setTheme(style)
-                                onDismiss()
-                            }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // 主题迷你预览图（手机缩略效果）
-                        ThemePreview(style = style, modifier = Modifier.size(width = 52.dp, height = 88.dp))
-                        Spacer(Modifier.width(14.dp))
-                        Text(
-                            style.label,
-                            fontSize = 14.sp,
-                            color = Color.White,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (selected) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(style.brand.accent),
-                            )
-                        }
-                    }
+            // 每个主题框等大等高（72dp）；一屏放不下 7 套主题时整列可滑动
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 360.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(ThemeStyle.entries.toList(), key = { it.id }) { style ->
+                    ThemeOptionRow(
+                        style = style,
+                        selected = style == controller.current,
+                        onClick = {
+                            controller.setTheme(style)
+                            onDismiss()
+                        },
+                    )
                 }
             }
         },
@@ -489,14 +485,62 @@ private fun ThemePickerDialog(onDismiss: () -> Unit) {
     )
 }
 
+/** 主题选项行：固定 72dp 高，保证列表里每个主题框一样大 */
+@Composable
+private fun ThemeOptionRow(
+    style: ThemeStyle,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                if (selected) Color.White.copy(alpha = 0.12f)
+                else Color.White.copy(alpha = 0.04f),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // 主题迷你预览图（手机缩略效果，固定尺寸）
+        ThemePreview(style = style, modifier = Modifier.size(width = 44.dp, height = 56.dp))
+        Spacer(Modifier.width(14.dp))
+        Text(
+            style.label,
+            fontSize = 14.sp,
+            color = Color.White,
+            modifier = Modifier.weight(1f),
+        )
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(style.brand.accent),
+            )
+        }
+    }
+}
+
 /**
  * 主题迷你预览图：模拟手机界面缩略效果。
  * 仅依赖 [ThemeStyle.brand]，换主题时预览随之更新。
  */
 @Composable
 private fun ThemePreview(style: ThemeStyle, modifier: Modifier = Modifier) {
-    val bg = if (style.dark) Color(0xFF121216) else Color(0xFFF7F7F9)
-    val card = if (style.dark) Color(0xFF1E1E24) else Color(0xFFFFFFFF)
+    val bg = when (style) {
+        ThemeStyle.AMOLED -> Color(0xFF050507)
+        ThemeStyle.LIGHT -> Color(0xFFF7F7F9)
+        else -> Color(0xFF121216)
+    }
+    val card = when (style) {
+        ThemeStyle.AMOLED -> Color(0xFF101015)
+        ThemeStyle.LIGHT -> Color(0xFFFFFFFF)
+        else -> Color(0xFF1E1E24)
+    }
     val text = if (style.dark) Color(0xFFECECEF) else Color(0xFF15161A)
     val sub = if (style.dark) Color(0xFF9A9AA3) else Color(0xFF8A8A93)
     val brand = style.brand

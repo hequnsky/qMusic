@@ -26,7 +26,7 @@ data class BrandColors(
 
 /**
  * 主题风格：默认都是深色，仅换强调色 / 渐变，保持与现默认深色一致。
- * 另含一个浅色选项，作为「浅色」主题。
+ * 另含一个浅色选项，作为「浅色」主题；以及一个纯黑背景的「暗夜黑」（AMOLED 省电）。
  */
 enum class ThemeStyle(
     val id: String,
@@ -39,6 +39,7 @@ enum class ThemeStyle(
     BLUE("blue", "深海蓝", true, BrandColors(Color(0xFF3DA5FF), Color(0xFF2E7BFF), Color(0xFF3DA5FF), Color(0xFF2E7BFF))),
     GREEN("green", "极光绿", true, BrandColors(Color(0xFF2BD9A0), Color(0xFF16C2C2), Color(0xFF2BD9A0), Color(0xFF16C2C2))),
     PINK("pink", "蜜桃粉", true, BrandColors(Color(0xFFFF6FA5), Color(0xFFFF9F6B), Color(0xFFFF6FA5), Color(0xFFFF9F6B))),
+    AMOLED("amoled", "暗夜黑", true, BrandColors(Color(0xFFB9B9C6), Color(0xFF84849A), Color(0xFFC6C6D4), Color(0xFF6E6E82))),
     LIGHT("light", "浅色", false, BrandColors(Color(0xFFFF4B4B), Color(0xFFFF8A3D), Color(0xFFFF4B5C), Color(0xFFFF8A3D))),
     ;
 
@@ -89,6 +90,18 @@ val DarkQMusicColors = QMusicColors(
     tabInactive = Color(0xFF8A8A93),
 )
 
+/** 「暗夜黑」主题专用配色：背景 / 卡片压到近纯黑，OLED 屏更省电、对比更凌厉 */
+val AmoledQMusicColors = QMusicColors(
+    background = Color(0xFF050507),
+    card = Color(0xFF101015),
+    textPrimary = Color(0xFFF2F2F5),
+    textSecondary = Color(0xFF9A9AA6),
+    textTertiary = Color(0xFF6C6C78),
+    divider = Color(0xFF22222A),
+    bottomBar = Color(0xFF0A0A0D),
+    tabInactive = Color(0xFF7E7E8C),
+)
+
 val LocalQMusicColors = staticCompositionLocalOf { LightQMusicColors }
 
 /** 主题偏好持久化（SharedPreferences），存储主题 id（默认经典红） */
@@ -129,23 +142,27 @@ fun QMusicTheme(
     themeStyle: ThemeStyle = ThemeStyle.CLASSIC,
     content: @Composable () -> Unit,
 ) {
-    val colors = if (themeStyle.dark) DarkQMusicColors else LightQMusicColors
+    // 「暗夜黑」用近纯黑配色；其余深色主题走标准深色；浅色主题走浅色
+    val colors = when (themeStyle) {
+        ThemeStyle.AMOLED -> AmoledQMusicColors
+        else -> if (themeStyle.dark) DarkQMusicColors else LightQMusicColors
+    }
     val brand = themeStyle.brand
     val colorScheme = if (themeStyle.dark) {
         darkColorScheme(
             primary = brand.accent,
-            onPrimary = Color.White,
+            onPrimary = if (themeStyle == ThemeStyle.AMOLED) Color(0xFF101015) else Color.White,
             primaryContainer = Color(0xFF5A2A33),
             onPrimaryContainer = Color.White,
             secondary = brand.accent2,
             onSecondary = Color.White,
-            background = Color(0xFF121216),
-            onBackground = Color(0xFFECECEF),
-            surface = Color(0xFF1E1E24),
-            onSurface = Color(0xFFECECEF),
-            surfaceVariant = Color(0xFF2A2A31),
-            onSurfaceVariant = Color(0xFF9A9AA3),
-            outline = Color(0xFF2A2A31),
+            background = colors.background,
+            onBackground = colors.textPrimary,
+            surface = colors.card,
+            onSurface = colors.textPrimary,
+            surfaceVariant = colors.divider,
+            onSurfaceVariant = colors.textSecondary,
+            outline = colors.divider,
             error = Color(0xFFFF6B6B),
         )
     } else {

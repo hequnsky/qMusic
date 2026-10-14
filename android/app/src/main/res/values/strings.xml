@@ -117,11 +117,15 @@
     <string name="download_failed">下载失败</string>
     <string name="delete">删除</string>
 
-    <!-- 网易云账号登录 -->
+    <!-- 网易云账号登录（手机号 + 密码，weapi /login/cellphone） -->
     <string name="login">登录</string>
-    <string name="login_desc">使用网易云音乐 App 扫码登录\n同步关注 / 粉丝 / 获赞</string>
-    <string name="login_generating">正在生成二维码…</string>
-    <string name="login_failed">二维码加载失败，请检查网络</string>
+    <string name="login_desc">使用网易云账号登录\n同步歌单 / 关注 / 粉丝 / 获赞</string>
+    <string name="login_phone">手机号</string>
+    <string name="login_phone_hint">请输入 11 位手机号</string>
+    <string name="login_phone_invalid">请输入 11 位手机号</string>
+    <string name="login_password">密码</string>
+    <string name="login_password_empty">请输入密码</string>
+    <string name="login_submit">登 录</string>
     <string name="login_scan_hint">仅用于展示公开用户信息，不会访问您的私密数据</string>
     <string name="logout">退出登录</string>
 
