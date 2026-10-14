@@ -15,7 +15,9 @@ FROM golang:1.26 AS go-builder
 WORKDIR /src/musiclib-service
 COPY musiclib-service/ .
 
-ENV GOPROXY=https://goproxy.cn,direct
+# 注意：Render 等海外平台构建机访问 goproxy.cn 不稳，用官方源；
+# 国内自建可改回 https://goproxy.cn,direct
+ENV GOPROXY=https://proxy.golang.org,direct
 ENV GOSUMDB=off
 ENV GOTOOLCHAIN=local
 ENV CGO_ENABLED=0
