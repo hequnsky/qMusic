@@ -16,6 +16,22 @@
 
 ---
 
+## [1.18] — 2026-10-15
+
+> 应用正式更名为「qMusic」（多音源聚合后「汽水音乐」一名已不成立）；补发 v1.16 / v1.17 的 GitHub Release 双包。
+
+### 1. 应用更名：汽水音乐 → qMusic
+
+- **根因/背景**：项目早期参考「汽水音乐」界面风格故沿用了该名称；现已聚合网易云 / QQ / 酷狗 / 酷我等多音源，「汽水音乐」与 actual 能力不符，且与仓库名 `hequnsky/qMusic` 不一致。
+- **改法**：`res/values/strings.xml` 的 `app_name` 由「汽水音乐」改为「qMusic」（`values-en` 原为 `QMusic`，同步小写化为 `qMusic`）；隐私政策文案「感谢使用汽水音乐（qMusic）」改为「感谢使用 qMusic」。Manifest 的 `android:label` 引用 `@string/app_name`，桌面图标名与主页顶栏自动跟随。
+- **文档**：README 版本表补登 1.16 / 1.17 / 1.18 三行（此前停留在 1.15）。
+
+### 2. 补发 GitHub Release（v1.16 / v1.17）
+
+- 此前 Release 只上传过 v1.15 双包；本版将 `qMusic-1.16-release.apk`（4.47MB）/ `qMusic-1.16-debug.apk`（24.13MB）与 `qMusic-1.17-release.apk`（4.49MB）/ `qMusic-1.17-debug.apk`（24.16MB）全部上传至对应 tag。
+
+---
+
 ## [1.17] — 2026-10-14
 
 > 登录方式改造（移除二维码，改手机号 + 密码）、登录页穿透点击修复、主题新增「暗夜黑」且选择面板改为等大框滑动列表、播放页图标重绘、重命名弹框自动聚焦、全页面虚拟返回键 inset 适配。

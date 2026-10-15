@@ -5,7 +5,10 @@
 
 | 当前版本 | 更新日志 | APK 产物名 |
 | --- | --- | --- |
-| **1.15** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.15-release.apk` |
+| **1.18** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.18-release.apk` |
+| 1.17 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.17-release.apk` |
+| 1.16 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.16-release.apk` |
+| 1.15 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.15-release.apk` |
 
 ![原型 - 发现页](prototype/screenshots/discover.png)
 
