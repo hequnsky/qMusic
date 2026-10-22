@@ -16,6 +16,40 @@
 
 ---
 
+## [1.20] — 2026-10-23
+
+> 线上地址改为**远程可配置**：换隧道域名不再需要发版。起因是 Quick Tunnel 域名一重启就变，v1.19 发出去当天兜底域名就失效了。
+
+### 1. 背景
+
+- Cloudflare Quick Tunnel 域名**进程重启即变**，且匿名隧道会被回收（v1.19 之前那次挂掉就是 `Unauthorized: Tunnel not found`）。
+- 域名写死在 `ServerConfig.ONLINE_BASE_URL` 里 → 每次换域名都要重新打包发版，用户不更新就一直连旧地址。
+
+### 2. 改法
+
+- 仓库根新增 [`server-address.json`](../server-address.json)：存放当前线上地址。
+- `ServerConfig` 新增 `resolveOnlineBaseUrl()`：用 `HttpURLConnection` 拉
+  `https://raw.githubusercontent.com/hequnsky/qMusic/main/server-address.json`，
+  **3 秒连接 / 3 秒读取超时**，解析 `{"online": "..."}`；任何异常（无网络 / 被墙 / 格式错）都回退到内置 `ONLINE_BASE_URL`。
+- `useOnline()` 改为 `suspend` 并返回实际生效的地址；「我的 → 服务器地址 → 🌐 一键切换线上环境」改为协程调用，
+  按钮在解析期间显示「正在获取线上地址…」并禁用重复点击。
+- 内置兜底地址更新为当前隧道 `https://passengers-territories-faces-salvation.trycloudflare.com/`。
+
+### 3. 以后换域名的操作
+
+1. 重启隧道拿新域名；
+2. 改 `server-address.json` 的 `online` 字段，push；
+3. 所有已装 App 点「🌐 一键切换线上环境」即自动跟随 —— **不用发版**。
+
+### 4. 验证
+
+- 本地网关 `:3300` 四接口全 200，多音源 `available:true`（9 源）；
+- 公网新域名 `/personalized`、`/multi/sources` 200；
+- release 包真机冷启动主页内容完整加载；
+- 新增 `scripts/server-health.mjs` 一键自检（端口 / 网关 / 多音源 / 隧道 + 修复建议）。
+
+---
+
 ## [1.19] — 2026-10-23
 
 > 服务端「全挂了」故障排查与恢复：Cloudflare 临时隧道被回收、本机 3000/3001 端口被其它会话的预览服务占用、多音源进程退出。服务栈迁到 3300/3301，App 内置地址同步更新。

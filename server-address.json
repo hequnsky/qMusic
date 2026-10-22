@@ -1,0 +1,5 @@
+{
+  "online": "https://passengers-territories-faces-salvation.trycloudflare.com/",
+  "note": "qMusic 线上服务地址。Cloudflare Quick Tunnel 重启后域名会变：改这里并 push 即可，App 点「一键切换线上环境」时自动拉取，无需发版。稳定后应换成 Render 固定域名。",
+  "updated": "2026-10-23"
+}

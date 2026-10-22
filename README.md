@@ -44,12 +44,12 @@
 | 项 | 说明 |
 | --- | --- |
 | 签名 | **与 release 同一份证书** —— debug 与 release 可互相覆盖安装，调试时无需卸载，本地收藏/歌单与桌面小组件都不会丢（本机缺 release keystore 时自动回落到默认 debug 证书） |
-| 默认服务器地址 | `http://127.0.0.1:3000/` —— 在电脑上执行一次 `adb reverse tcp:3000 tcp:3000` 即可连通本机音乐服务，不依赖局域网 IP、换 WiFi 也不用重设 |
+| 默认服务器地址 | `http://127.0.0.1:3300/` —— 在电脑上执行一次 `adb reverse tcp:3300 tcp:3300` 即可连通本机音乐服务，不依赖局域网 IP、换 WiFi 也不用重设 |
 | 产物名 | `qMusic-<版本>-debug.apk`（与 release 同版本号） |
 
 ```bash
 # 真机调试三步
-adb reverse tcp:3000 tcp:3000          # 端口转发
+adb reverse tcp:3300 tcp:3300          # 端口转发
 cd android && ./gradlew assembleDebug  # 或 build-apk.sh debug
 adb install -r app/build/outputs/apk/debug/qMusic-*-debug.apk
 ```
@@ -171,13 +171,14 @@ cd android
 
 ```bash
 # 下载 cloudflared 后执行（无需注册、无需登录）
-cloudflared tunnel --url http://127.0.0.1:3000
+cloudflared tunnel --url http://127.0.0.1:3300
 # 输出 https://<随机>.trycloudflare.com 即线上地址
 ```
 
 > ⚠️ Quick Tunnel 域名**进程重启即变**，且无可用性保证，仅适合调试/演示。
-> 域名变化后，在 App「我的 → 服务器地址」粘贴新域名，或同步更新
-> `ServerConfig.ONLINE_BASE_URL`。
+> 换域名后**不需要重新发版**：把新域名写进仓库根目录的
+> [`server-address.json`](server-address.json) 并 push，
+> App 点「🌐 一键切换线上环境」时会自动拉取该文件（3 秒超时，失败回退内置地址）。
 
 ### App 端切换
 

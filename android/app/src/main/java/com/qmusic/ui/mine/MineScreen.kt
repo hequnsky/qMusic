@@ -338,6 +338,8 @@ fun MineScreen(
     // 服务器地址设置
     if (showServerDialog) {
         var url by remember { mutableStateOf(ServerConfig.getBaseUrl(context)) }
+        var resolving by remember { mutableStateOf(false) }
+        val dialogScope = rememberCoroutineScope()
         AlertDialog(
             onDismissRequest = { showServerDialog = false },
             containerColor = Color(0xFF1B1B1F),
@@ -358,16 +360,21 @@ fun MineScreen(
                         Text("🌐", fontSize = 14.sp)
                         Spacer(Modifier.width(6.dp))
                         TextButton(
+                            enabled = !resolving,
                             onClick = {
-                                ServerConfig.useOnline(context)
-                                currentServerUrl = ServerConfig.ONLINE_BASE_URL
-                                showServerDialog = false
-                                Toast.makeText(context, R.string.server_switched_online, Toast.LENGTH_SHORT).show()
+                                resolving = true
+                                dialogScope.launch {
+                                    val resolved = ServerConfig.useOnline(context)
+                                    currentServerUrl = resolved
+                                    showServerDialog = false
+                                    resolving = false
+                                    Toast.makeText(context, R.string.server_switched_online, Toast.LENGTH_SHORT).show()
+                                }
                             },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                         ) {
                             Text(
-                                stringResource(R.string.server_use_online),
+                                if (resolving) stringResource(R.string.server_switching) else stringResource(R.string.server_use_online),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = GradientStart
