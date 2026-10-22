@@ -1,5 +1,5 @@
 {
-  "online": "https://passengers-territories-faces-salvation.trycloudflare.com/",
-  "note": "qMusic 线上服务地址。Cloudflare Quick Tunnel 重启后域名会变：改这里并 push 即可，App 点「一键切换线上环境」时自动拉取，无需发版。稳定后应换成 Render 固定域名。",
+  "online": "http://192.168.0.56:3300/",
+  "note": "qMusic 线上服务地址。当前填写的是电脑的局域网地址（手机连同一 WiFi 即可用，最稳定）。Cloudflare Quick Tunnel 域名进程重启就变、还会被限流/回收，不适合长期使用；拿到 Render 固定域名后把 online 改成 https://<你的服务>.onrender.com/，push 即可，App 点「一键切换线上环境」自动生效，无需发版。",
   "updated": "2026-10-23"
 }
