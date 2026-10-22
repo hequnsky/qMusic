@@ -16,6 +16,45 @@
 
 ---
 
+## [1.19] — 2026-10-23
+
+> 服务端「全挂了」故障排查与恢复：Cloudflare 临时隧道被回收、本机 3000/3001 端口被其它会话的预览服务占用、多音源进程退出。服务栈迁到 3300/3301，App 内置地址同步更新。
+
+### 1. 故障现象
+
+- 用户反馈「GitHub 地址挂了、服务端挂了」：App 打开显示「加载失败，请确认音乐服务已启动」，线上域名无法访问。
+- 排查结论：**GitHub 仓库本身正常**（`api.github.com` 200、Release 下载 302 正常），实际是三个服务端问题叠加。
+
+### 2. 三个根因
+
+| # | 现象 | 根因 |
+| --- | --- | --- |
+| 1 | 线上域名 `albums-quite-grass-harvest.trycloudflare.com` 打不开 | Cloudflare Quick Tunnel 会话被回收，日志 `Unauthorized: Tunnel not found`，其后持续 `timeout: no recent network activity` |
+| 2 | App 拿到 HTML 而非 JSON | 本机 `:3000` / `:3001` 被**其它 WorkBuddy 会话启动的静态预览服务**（`node server.js`，任何路径 fallback 到 index.html）占用，qMusic 网关实际未运行 |
+| 3 | 多音源不可用（`/multi/sources` → `available:false`） | `:3100` 的 `qmusic-musiclib` 进程已退出（后台启动方式被回收） |
+
+### 3. 改法
+
+- **服务端迁移端口**：网关 `3000 → 3300`、网易云上游 `3001 → 3301`，多音源保持 `3100`；启动命令：
+  `PORT=3300 NCM_PORT=3301 MUSICLIB_URL=http://127.0.0.1:3100 node index.js`（避开与其它项目的端口冲突）。
+- **App 默认地址端口同步**：`ServerConfig.DEBUG_BASE_URL` / `RELEASE_BASE_URL` 的 `:3000` → `:3300`；
+  debug 包调试命令相应改为 `adb reverse tcp:3300 tcp:3300`。
+- **线上地址更新**：`ONLINE_BASE_URL` 指向新隧道 `https://zealand-bureau-very-san.trycloudflare.com/`。
+- **多音源改为受管后台任务**重启，避免子 shell 退出导致进程被回收。
+
+### 4. 验证
+
+- 本地 `:3300` 四接口：`/personalized` 200、`/search` 200、`/song/url` 200、`/multi/sources` → `available:true`（9 个音源）。
+- 公网新域名同样四项全 200（含多音源可用）。
+- release 包真机安装冷启动，主页内容完整加载。
+
+### 5. 遗留问题
+
+- Quick Tunnel 域名**每次重启都会变化**，且匿名隧道会被回收——这是「服务端反复挂」的根本原因。
+  彻底解法是 `render.yaml` + `server/Dockerfile` 部署到 Render（固定域名、7×24 在线），代码已就绪待部署。
+
+---
+
 ## [1.18] — 2026-10-15
 
 > 应用正式更名为「qMusic」（多音源聚合后「汽水音乐」一名已不成立）；补发 v1.16 / v1.17 的 GitHub Release 双包。

@@ -9,11 +9,11 @@ object ServerConfig {
     private const val PREFS = "qmusic_server"
     private const val KEY_BASE_URL = "base_url"
 
-    /** debug 包默认：配合 `adb reverse tcp:3000 tcp:3000` 真机调试，无需知道电脑 IP */
-    private const val DEBUG_BASE_URL = "http://127.0.0.1:3000/"
+    /** debug 包默认：配合 `adb reverse tcp:3300 tcp:3300` 真机调试，无需知道电脑 IP */
+    private const val DEBUG_BASE_URL = "http://127.0.0.1:3300/"
 
     /** release 包默认：Android 模拟器访问宿主机的特殊地址 */
-    private const val RELEASE_BASE_URL = "http://10.0.2.2:3000/"
+    private const val RELEASE_BASE_URL = "http://10.0.2.2:3300/"
 
     /**
      * 线上环境地址：Cloudflare Quick Tunnel 指向本机 :3000 网关，
@@ -22,7 +22,7 @@ object ServerConfig {
      * ⚠️ Quick Tunnel 域名随 cloudflared 进程重启而变化，更换后需同步更新此常量；
      * 用户亦可在「我的 → 服务器地址」手动粘贴新域名。
      */
-    const val ONLINE_BASE_URL = "https://albums-quite-grass-harvest.trycloudflare.com/"
+    const val ONLINE_BASE_URL = "https://zealand-bureau-very-san.trycloudflare.com/"
 
     /**
      * 默认服务地址（按构建类型区分）。
