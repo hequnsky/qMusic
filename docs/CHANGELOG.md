@@ -28,9 +28,13 @@
 ### 2. 改法
 
 - 仓库根新增 [`server-address.json`](../server-address.json)：存放当前线上地址。
-- `ServerConfig` 新增 `resolveOnlineBaseUrl()`：用 `HttpURLConnection` 拉
-  `https://raw.githubusercontent.com/hequnsky/qMusic/main/server-address.json`，
-  **3 秒连接 / 3 秒读取超时**，解析 `{"online": "..."}`；任何异常（无网络 / 被墙 / 格式错）都回退到内置 `ONLINE_BASE_URL`。
+- `ServerConfig` 新增 `resolveOnlineBaseUrl()`：**按优先级轮询多个配置源**，每个 3 秒连接 / 3 秒读取超时：
+  1. `https://fastly.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json`（国内可直连）
+  2. `https://gcore.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json`（备用节点）
+  3. `https://raw.githubusercontent.com/hequnsky/qMusic/main/server-address.json`（海外兜底）
+
+  解析 `{"online": "..."}`；全部失败才回退内置 `ONLINE_BASE_URL`。
+  （实测 `raw.githubusercontent.com` 与 `cdn.jsdelivr.net` 在本机代理下均不可达，fastly / gcore 节点 200 正常。）
 - `useOnline()` 改为 `suspend` 并返回实际生效的地址；「我的 → 服务器地址 → 🌐 一键切换线上环境」改为协程调用，
   按钮在解析期间显示「正在获取线上地址…」并禁用重复点击。
 - 内置兜底地址更新为当前隧道 `https://passengers-territories-faces-salvation.trycloudflare.com/`。

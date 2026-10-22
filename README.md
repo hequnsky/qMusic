@@ -178,7 +178,10 @@ cloudflared tunnel --url http://127.0.0.1:3300
 > ⚠️ Quick Tunnel 域名**进程重启即变**，且无可用性保证，仅适合调试/演示。
 > 换域名后**不需要重新发版**：把新域名写进仓库根目录的
 > [`server-address.json`](server-address.json) 并 push，
-> App 点「🌐 一键切换线上环境」时会自动拉取该文件（3 秒超时，失败回退内置地址）。
+> App 点「🌐 一键切换线上环境」时会按优先级拉取该文件
+> （jsDelivr fastly → jsDelivr gcore → GitHub raw，各 3 秒超时，全部失败回退内置地址）。
+> jsDelivr 对 `@main` 有缓存，紧急换域名可访问
+> `https://purge.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json` 刷新。
 
 ### App 端切换
 

@@ -53,32 +53,42 @@ object ServerConfig {
         ApiClient.updateBaseUrl(normalized)
     }
 
-    /** 线上地址的远程配置（换隧道域名后只需改仓库里的 json，无需发版） */
-    private const val ONLINE_CONFIG_URL =
-        "https://raw.githubusercontent.com/hequnsky/qMusic/main/server-address.json"
+    /**
+     * 线上地址的远程配置源（换隧道域名后只改仓库里的 json 并 push，无需发版）。
+     *
+     * 顺序即优先级：jsDelivr 的 fastly / gcore 节点国内可直连
+     * （cdn.jsdelivr.net 与 raw.githubusercontent.com 在部分网络下不可达，故放最后兜底）。
+     * 注意 jsDelivr 对 `@main` 有缓存，紧急换域名时可访问
+     * `https://purge.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json` 刷新。
+     */
+    private val ONLINE_CONFIG_URLS = listOf(
+        "https://fastly.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json",
+        "https://gcore.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json",
+        "https://raw.githubusercontent.com/hequnsky/qMusic/main/server-address.json",
+    )
 
     /**
-     * 解析当前线上地址：优先读远程配置，失败（无网络/被墙/超时）回退内置常量。
-     *
-     * 背景：Cloudflare Quick Tunnel 每次重启都会换域名，把域名写死在安装包里
-     * 会导致「一换域名就要发版」。改为运行时拉取后，服务端换地址只需要改一行 json。
+     * 解析当前线上地址：依次尝试各远程配置源，全部失败（无网络/被墙/超时/格式错）
+     * 回退内置 [ONLINE_BASE_URL]。
      */
     suspend fun resolveOnlineBaseUrl(): String = withContext(Dispatchers.IO) {
-        try {
-            val conn = (URL(ONLINE_CONFIG_URL).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 3000
-                readTimeout = 3000
-                requestMethod = "GET"
+        for (configUrl in ONLINE_CONFIG_URLS) {
+            try {
+                val conn = (URL(configUrl).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 3000
+                    readTimeout = 3000
+                    requestMethod = "GET"
+                }
+                val text = conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
+                val found = Regex("\"online\"\\s*:\\s*\"([^\"]+)\"").find(text)
+                    ?.groupValues?.get(1)
+                if (found != null && found.startsWith("http")) return@withContext found
+            } catch (_: Exception) {
+                // 换下一个源
             }
-            val text = conn.inputStream.bufferedReader().use { it.readText() }
-            conn.disconnect()
-            Regex("\"online\"\\s*:\\s*\"([^\"]+)\"").find(text)
-                ?.groupValues?.get(1)
-                ?.takeIf { it.startsWith("http") }
-                ?: ONLINE_BASE_URL
-        } catch (e: Exception) {
-            ONLINE_BASE_URL
         }
+        ONLINE_BASE_URL
     }
 
     /** 一键切换到线上环境（先取远程配置，失败回退内置地址），返回实际使用的地址 */
