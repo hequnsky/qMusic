@@ -3,6 +3,7 @@ package com.qmusic.ui.discover
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.qmusic.data.MusicRepository
+import com.qmusic.data.local.ServerConfig
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.Song
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,14 @@ class DiscoverViewModel(private val repository: MusicRepository) : ViewModel() {
 
     init {
         refresh()
+        // 服务地址被自动修复（启动自愈）或用户手动切换后，自动重新加载一次，
+        // 否则页面会僵在「加载失败」，用户以为没修好。
+        viewModelScope.launch {
+            ServerConfig.baseUrlChanges.collect {
+                heroPool = emptyList()
+                refresh()
+            }
+        }
     }
 
     fun refresh() {

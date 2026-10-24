@@ -5,6 +5,10 @@ import android.util.Base64
 import com.qmusic.BuildConfig
 import com.qmusic.data.remote.ApiClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
@@ -48,6 +52,13 @@ object ServerConfig {
             .getString(KEY_BASE_URL, DEFAULT_BASE_URL)
             ?: DEFAULT_BASE_URL
 
+    /**
+     * 服务地址变更通知（手动切换 / 启动自愈 / 一键切换线上环境都会触发）。
+     * 界面据此重新加载，避免「地址已经修好了但页面还停在加载失败」。
+     */
+    private val _baseUrlChanges = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val baseUrlChanges: SharedFlow<String> = _baseUrlChanges.asSharedFlow()
+
     fun setBaseUrl(context: Context, url: String) {
         val normalized = if (url.endsWith("/")) url else "$url/"
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -55,6 +66,7 @@ object ServerConfig {
             .putString(KEY_BASE_URL, normalized)
             .apply()
         ApiClient.updateBaseUrl(normalized)
+        _baseUrlChanges.tryEmit(normalized)
     }
 
     /**
@@ -156,12 +168,12 @@ object ServerConfig {
     }
 
     /** 探测地址是否真实可连通（HTTP 2xx/3xx 视为可用） */
-    private fun probe(baseUrl: String): Boolean {
+    private fun probe(baseUrl: String, timeoutMs: Int = 4000): Boolean {
         val url = normalize(baseUrl) + PROBE_PATH
         return try {
             val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 4000
-                readTimeout = 4000
+                connectTimeout = timeoutMs
+                readTimeout = timeoutMs
                 requestMethod = "GET"
             }
             val code = conn.responseCode
@@ -179,6 +191,53 @@ object ServerConfig {
         val url = resolveOnlineBaseUrl()
         setBaseUrl(context, url)
         return url
+    }
+
+    /** 是否为局域网/回环地址（这类地址只在同一 WiFi 下可达） */
+    private fun isPrivateHost(url: String): Boolean {
+        val host = Regex("^https?://([^/:]+)").find(url)?.groupValues?.get(1) ?: return false
+        return host.startsWith("127.") ||
+            host.startsWith("192.168.") ||
+            host.startsWith("10.") ||
+            Regex("^172\\.(1[6-9]|2[0-9]|3[01])\\.").containsMatchIn(host) ||
+            host == "localhost"
+    }
+
+    /**
+     * 启动自愈：**当前保存的地址连不通时，自动换成可用的那个并写回 prefs**。
+     *
+     * 解决的实际问题：SharedPreferences 会随覆盖安装保留，一旦里面存的是
+     * 已回收的隧道域名、或电脑的局域网 IP（手机切到 4G/5G 后必然不可达），
+     * App 每次启动都用这个死地址，表现为「服务明明在跑、地址也换了，
+     * 可 App 还是连不上」——用户必须手动进「服务器地址」清空重填才能恢复。
+     *
+     * 逻辑：当前地址 → 探测（失败则等 1.5s 重试一次，避开开机瞬间网络未就绪）
+     * → 仍不通才按候选顺序找一个能连的写回。
+     * 当前地址本来就通时**什么都不做**，不会覆盖用户手填的地址。
+     *
+     * @return 发生切换时返回新地址；未切换返回 null
+     */
+    suspend fun healIfUnreachable(context: Context): String? = withContext(Dispatchers.IO) {
+        val current = getBaseUrl(context)
+        // 私有地址在移动数据下必然不可达，路由很快会报错，用短超时即可，
+        // 避免用户干等 4 秒才看到首页出内容。
+        val timeout = if (isPrivateHost(current)) 1200 else 2500
+        if (probe(current, timeout)) return@withContext null
+        delay(if (isPrivateHost(current)) 600 else 1500)
+        if (probe(current, timeout)) return@withContext null
+
+        val ordered = LinkedHashSet<String>()
+        fetchRemoteCandidates().forEach { ordered.add(normalize(it)) }
+        BUILTIN_CANDIDATES.forEach { ordered.add(normalize(it)) }
+        ordered.remove(normalize(current))
+
+        for (url in ordered) {
+            if (probe(url)) {
+                setBaseUrl(context, url)
+                return@withContext url
+            }
+        }
+        null
     }
 
     /** 当前是否正在使用线上环境 */
