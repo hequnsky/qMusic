@@ -1,5 +1,10 @@
 {
-  "online": "http://192.168.0.56:3300/",
-  "note": "qMusic 线上服务地址。当前填写的是电脑的局域网地址（手机连同一 WiFi 即可用，最稳定）。Cloudflare Quick Tunnel 域名进程重启就变、还会被限流/回收，不适合长期使用；拿到 Render 固定域名后把 online 改成 https://<你的服务>.onrender.com/，push 即可，App 点「一键切换线上环境」自动生效，无需发版。",
-  "updated": "2026-10-23"
+  "online": "https://cooperative-badly-elect-boundary.trycloudflare.com/",
+  "lan": "http://192.168.0.56:3300/",
+  "candidates": [
+    "https://cooperative-badly-elect-boundary.trycloudflare.com/",
+    "http://192.168.0.56:3300/"
+  ],
+  "updated": "2026-10-24",
+  "note": "candidates 为按优先级排列的候选地址，App 会逐个探测，返回第一个真实可连通的地址；online 为默认首选（兼容旧版解析）。online 走 Cloudflare Quick Tunnel，手机在任何网络下都可访问，但域名随 cloudflared 进程重启而变化、且无 uptime 保证；lan 为电脑局域网地址，仅手机连同一 WiFi 时可用但最稳定。更换隧道后改这里 + push 即可，App 点「一键切换线上环境」自动生效，无需发版。拿到 Render 固定域名后把 online 换成 https://<服务>.onrender.com/。"
 }

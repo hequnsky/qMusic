@@ -20,13 +20,16 @@ object ServerConfig {
     private const val RELEASE_BASE_URL = "http://10.0.2.2:3300/"
 
     /**
-     * 线上环境地址：Cloudflare Quick Tunnel 指向本机 :3000 网关，
+     * 线上环境地址：Cloudflare Quick Tunnel 指向本机 :3300 网关，
      * 手机走移动网络/任意 WiFi 均可访问（HTTPS，无需配置 network_security_config）。
      *
      * ⚠️ Quick Tunnel 域名随 cloudflared 进程重启而变化，更换后需同步更新此常量；
-     * 用户亦可在「我的 → 服务器地址」手动粘贴新域名。
+     * 优先由远程 server-address.json 下发，此常量仅作远程配置不可达时的兜底。
      */
-    const val ONLINE_BASE_URL = "https://passengers-territories-faces-salvation.trycloudflare.com/"
+    const val ONLINE_BASE_URL = "https://cooperative-badly-elect-boundary.trycloudflare.com/"
+
+    /** 局域网直连地址（手机与电脑同一 WiFi 时最快，隧道失效时的兜底） */
+    private const val LAN_BASE_URL = "http://192.168.0.56:3300/"
 
     /**
      * 默认服务地址（按构建类型区分）。
@@ -67,11 +70,35 @@ object ServerConfig {
         "https://raw.githubusercontent.com/hequnsky/qMusic/main/server-address.json",
     )
 
+    /** 内置候选地址（远程配置全部不可达时依次探测） */
+    private val BUILTIN_CANDIDATES = listOf(ONLINE_BASE_URL, LAN_BASE_URL)
+
+    /** 探测用轻量接口：任一可用服务都应秒回，用于判定地址是否真的连通 */
+    private const val PROBE_PATH = "personalized?limit=1"
+
     /**
-     * 解析当前线上地址：依次尝试各远程配置源，全部失败（无网络/被墙/超时/格式错）
-     * 回退内置 [ONLINE_BASE_URL]。
+     * 解析当前线上地址。
+     *
+     * 关键改动：**先探测连通性再采用**。旧实现只取第一个能"下载到"的远程配置里的
+     * online 字段，一旦该地址（隧道被回收 / 电脑关机）实际不可用，就会把死地址写进
+     * prefs，表现为「服务明明在跑却一直加载失败」。
+     *
+     * 现在按 远程 candidates → 远程 online → 内置候选 的顺序合并去重，
+     * 逐个发一次轻量请求，返回**第一个真实可连通**的地址；全都不通才回退首个候选。
      */
     suspend fun resolveOnlineBaseUrl(): String = withContext(Dispatchers.IO) {
+        val ordered = LinkedHashSet<String>()
+        fetchRemoteCandidates().forEach { ordered.add(it) }
+        BUILTIN_CANDIDATES.forEach { ordered.add(it) }
+
+        for (url in ordered) {
+            if (probe(url)) return@withContext normalize(url)
+        }
+        normalize(ordered.first())
+    }
+
+    /** 抓取远程配置里的候选地址（candidates 数组优先，其次 online 字段） */
+    private fun fetchRemoteCandidates(): List<String> {
         for (configUrl in ONLINE_CONFIG_URLS) {
             try {
                 val conn = (URL(configUrl).openConnection() as HttpURLConnection).apply {
@@ -81,15 +108,45 @@ object ServerConfig {
                 }
                 val text = conn.inputStream.bufferedReader().use { it.readText() }
                 conn.disconnect()
-                val found = Regex("\"online\"\\s*:\\s*\"([^\"]+)\"").find(text)
+
+                val list = ArrayList<String>()
+                // candidates: [ "https://...", "http://..." ]
+                Regex("\"candidates\"\\s*:\\s*\\[([^\\]]*)\\]").find(text)
                     ?.groupValues?.get(1)
-                if (found != null && found.startsWith("http")) return@withContext found
+                    ?.let { body ->
+                        Regex("\"(https?://[^\"]+)\"").findAll(body)
+                            .forEach { list.add(it.groupValues[1]) }
+                    }
+                // online: "https://..."（兼容旧格式）
+                Regex("\"online\"\\s*:\\s*\"(https?://[^\"]+)\"").find(text)
+                    ?.groupValues?.get(1)?.let { list.add(it) }
+
+                if (list.isNotEmpty()) return list
             } catch (_: Exception) {
                 // 换下一个源
             }
         }
-        ONLINE_BASE_URL
+        return emptyList()
     }
+
+    /** 探测地址是否真实可连通（HTTP 2xx/3xx 视为可用） */
+    private fun probe(baseUrl: String): Boolean {
+        val url = normalize(baseUrl) + PROBE_PATH
+        return try {
+            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 4000
+                readTimeout = 4000
+                requestMethod = "GET"
+            }
+            val code = conn.responseCode
+            conn.disconnect()
+            code in 200..399
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun normalize(url: String): String = if (url.endsWith("/")) url else "$url/"
 
     /** 一键切换到线上环境（先取远程配置，失败回退内置地址），返回实际使用的地址 */
     suspend fun useOnline(context: Context): String {
