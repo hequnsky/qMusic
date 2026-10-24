@@ -15,13 +15,25 @@ const GATEWAY = process.env.QM_GATEWAY || 'http://127.0.0.1:3300'
 const MUSICLIB = process.env.QM_MUSICLIB || 'http://127.0.0.1:3100'
 
 function readOnlineUrl() {
+  // 优先读仓库根 server-address.json（这才是真正下发给 App 的地址）
+  try {
+    const cfg = JSON.parse(readFileSync('server-address.json', 'utf8'))
+    if (typeof cfg.online === 'string' && cfg.online.startsWith('http')) return cfg.online
+  } catch {
+    /* 回退到 ServerConfig.kt */
+  }
   try {
     const src = readFileSync('android/app/src/main/java/com/qmusic/data/local/ServerConfig.kt', 'utf8')
-    const m = src.match(/ONLINE_BASE_URL\s*=\s*"([^"]+)"/)
+    const m = src.match(/const val ONLINE_BASE_URL\s*=\s*"([^"]+)"/)
     return m ? m[1] : null
   } catch {
     return null
   }
+}
+
+/** 拼接基址与路径，避免基址尾斜杠导致出现 //path 被网关判 404 */
+function joinUrl(base, path) {
+  return base.replace(/\/+$/, '') + '/' + path.replace(/^\/+/, '')
 }
 
 async function probe(name, url, opts = {}) {
@@ -59,7 +71,19 @@ results.push(await probe('推荐接口', GATEWAY + '/personalized?limit=1', { ex
 results.push(await probe('搜索接口', GATEWAY + '/search?keywords=test&limit=1', { expect: (t) => t.includes('"result"') }))
 results.push(await probe('多音源', GATEWAY + '/multi/sources', { expect: (t) => t.includes('"available":true') }))
 if (online) {
-  results.push(await probe('线上隧道', online + '/multi/sources', { expect: (t) => t.includes('"available":true'), timeout: 20000 }))
+  results.push(await probe('线上隧道', joinUrl(online, 'multi/sources'), { expect: (t) => t.includes('"available":true'), timeout: 20000 }))
+}
+
+// 局域网地址（手机同 WiFi 直连，隧道挂掉时的备用入口）
+const lanMatch = (() => {
+  try {
+    return JSON.parse(readFileSync('server-address.json', 'utf8')).lan || null
+  } catch {
+    return null
+  }
+})()
+if (lanMatch && lanMatch !== online) {
+  results.push(await probe('局域网入口', joinUrl(lanMatch, 'multi/sources'), { expect: (t) => t.includes('"available":true') }))
 }
 
 console.log('\n=== qMusic 服务端自检 ===\n')
@@ -73,6 +97,11 @@ console.log('\n--- 端口监听 ---')
 for (const [port, label] of [[3300, '网关'], [3301, '网易云上游'], [3100, '多音源'], [3000, '（旧网关位，易被其它项目占用）'], [3001, '（旧上游位）']]) {
   console.log(`${ports.has(port) ? '监听中' : '未监听'}  :${port}  ${label}`)
 }
+
+console.log('\n--- 后台地址（App「我的 → 服务器地址」填这个）---')
+if (online) console.log(`  公网（任意网络）  ${online}`)
+if (lanMatch) console.log(`  局域网（同一 WiFi）${lanMatch}`)
+console.log(`  本机调试          ${GATEWAY}/`)
 
 const failed = results.filter((r) => !r.ok)
 if (failed.length) {
