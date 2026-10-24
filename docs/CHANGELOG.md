@@ -16,6 +16,96 @@
 
 ---
 
+## [1.21] — 2026-10-24
+
+> 修复「服务明明在跑，App 却一直连不上接口」：不再盲信配置里的地址，改为**先探测连通性再采用**；
+> 配置源从 jsDelivr（长缓存）换成 GitHub Contents API（60 秒级新鲜度）。
+
+### 1. 现场排查结论（重要，先排除误判）
+
+用户反馈「服务还是没起来，连不上接口服务」。逐层实测：
+
+| 层 | 结果 |
+| --- | --- |
+| 端口监听 | `:3300` 网关 + `:3301` 网易云 + `:3100` 多音源 全部 LISTENING |
+| 本机接口 | `/personalized` `/search` `/multi/sources` 全 **200**，有真实数据 |
+| 局域网 IP | `http://192.168.0.56:3300/personalized` **200**（36ms） |
+| 多音源 | `/health` → `ok:true, count:9` |
+| Windows 防火墙 | 公用配置文件**已关闭**，不是拦截 |
+| 公网通道 | **cloudflared 进程数 = 0**，旧 Quick Tunnel 已被 Cloudflare 回收 |
+
+**结论：服务端没坏，坏的是「入口」**——没有任何公网通道，而 `server-address.json`
+当时填的是局域网地址（只对同一 WiFi 有效），App 内置兜底又指向已死的隧道。
+
+### 2. 三个根因
+
+1. **CDN 长缓存让改配置形同无效**
+   jsDelivr 对 `@main` 分支有数小时边缘缓存，**即使调用 purge 接口刷新，再次请求仍返回旧内容**
+   （实测 fastly / gcore 两个节点在 push 新版 `server-address.json` 后仍返回旧 `online` 值）。
+   → 改配置 → push → App 点「一键切换」→ 拿到的还是老地址，看起来"改了没用"。
+   加 `?t=时间戳` 也**无效**：jsDelivr 的缓存键不含 query。
+
+2. **只判断"能不能下载"，不判断"地址能不能连"**
+   旧 `resolveOnlineBaseUrl()` 只要远程配置能拉下来就直接采用其中的 `online`，
+   地址本身是死的（隧道被回收 / 电脑关机）也照样写进 prefs → 表现为持续加载失败。
+
+3. **内置兜底地址失效**
+   `ONLINE_BASE_URL` 仍指向被回收的 `passengers-territories-faces-salvation`，
+   远程配置拉不到时必然回退到这个死地址。
+
+### 3. 改法
+
+**a. 配置源换 GitHub Contents API（首要通道）**
+
+```kotlin
+"https://api.github.com/repos/hequnsky/qMusic/contents/server-address.json?ref=main&t=$ts"
+```
+
+- 实测国内**可直连**（200 / 272ms），缓存仅 60 秒级 → 换域名一分钟内生效；
+- 返回体 `content` 字段是 base64，新增 `unwrapApiContent()` 解码后再解析；
+- 必须带 `User-Agent` 与 `Accept: application/vnd.github+json`，否则 403；
+- jsDelivr fastly/gcore 与 raw.githubusercontent 降级为兜底。
+
+**b. 先探测再采用（核心修复）**
+
+```kotlin
+for (url in ordered) { if (probe(url)) return@withContext normalize(url) }
+```
+
+`ordered` = 远程 candidates → 远程 online → 内置候选，去重后逐个发
+`GET <url>personalized?limit=1`（4 秒超时），**第一个返回 2xx/3xx 的才采用**；
+全不通才回退首个候选。彻底杜绝"把死地址写进 prefs"。
+
+**c. `server-address.json` 改为候选列表**
+
+```json
+{
+  "online": "https://cooperative-badly-elect-boundary.trycloudflare.com/",
+  "lan": "http://192.168.0.56:3300/",
+  "candidates": ["https://cooperative-badly-elect-boundary.trycloudflare.com/",
+                 "http://192.168.0.56:3300/"]
+}
+```
+
+保留 `online` 字段以兼容旧版解析（旧版只认它）。
+
+**d. 内置候选加局域网兜底**：`BUILTIN_CANDIDATES = [ONLINE_BASE_URL, LAN_BASE_URL]`，
+隧道挂掉时同一 WiFi 下仍能用。
+
+### 4. 验证
+
+- 新隧道 `https://cooperative-badly-elect-boundary.trycloudflare.com`：
+  `/personalized` **200**（1.6s）、`/multi/sources` **200**（0.48s）；
+- GitHub API 拉 `server-address.json` → base64 解码后 `online` 已是新隧道域名；
+- `ServerConfig` 编译通过（`BUILD SUCCESSFUL`），双包产物正常。
+
+### 5. 操作提示（旧版 App 也能用）
+
+jsDelivr 缓存过期前，**已安装的旧版 App** 若还连不上，直接在
+「我的 → 服务器地址」**手动粘贴新隧道域名**即可立刻生效，不必等缓存过期或升级。
+
+---
+
 ## [1.20] — 2026-10-23
 
 > 线上地址改为**远程可配置**：换隧道域名不再需要发版。起因是 Quick Tunnel 域名一重启就变，v1.19 发出去当天兜底域名就失效了。

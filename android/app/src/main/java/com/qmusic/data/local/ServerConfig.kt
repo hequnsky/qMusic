@@ -1,6 +1,7 @@
 package com.qmusic.data.local
 
 import android.content.Context
+import android.util.Base64
 import com.qmusic.BuildConfig
 import com.qmusic.data.remote.ApiClient
 import kotlinx.coroutines.Dispatchers
@@ -59,16 +60,23 @@ object ServerConfig {
     /**
      * 线上地址的远程配置源（换隧道域名后只改仓库里的 json 并 push，无需发版）。
      *
-     * 顺序即优先级：jsDelivr 的 fastly / gcore 节点国内可直连
-     * （cdn.jsdelivr.net 与 raw.githubusercontent.com 在部分网络下不可达，故放最后兜底）。
-     * 注意 jsDelivr 对 `@main` 有缓存，紧急换域名时可访问
-     * `https://purge.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json` 刷新。
+     * 顺序即优先级：
+     * 1. **GitHub Contents API** —— 实测国内可直连，缓存仅 60 秒级，
+     *    换域名后一分钟内即生效（jsDelivr 对 `@main` 分支有长达数小时的边缘缓存，
+     *    且 purge 后仍会命中旧缓存，曾导致"改了配置 App 却还连旧地址"）。
+     *    返回体里 content 字段是 base64，需解码后再解析。
+     * 2. jsDelivr fastly / gcore —— 作为兜底，内容可能滞后但格式一致。
+     * 3. raw.githubusercontent.com —— 部分网络不可达，放最后。
      */
-    private val ONLINE_CONFIG_URLS = listOf(
-        "https://fastly.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json",
-        "https://gcore.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json",
-        "https://raw.githubusercontent.com/hequnsky/qMusic/main/server-address.json",
-    )
+    private fun configUrls(): List<String> {
+        val ts = System.currentTimeMillis()
+        return listOf(
+            "https://api.github.com/repos/hequnsky/qMusic/contents/server-address.json?ref=main&t=$ts",
+            "https://fastly.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json?t=$ts",
+            "https://gcore.jsdelivr.net/gh/hequnsky/qMusic@main/server-address.json?t=$ts",
+            "https://raw.githubusercontent.com/hequnsky/qMusic/main/server-address.json?t=$ts",
+        )
+    }
 
     /** 内置候选地址（远程配置全部不可达时依次探测） */
     private val BUILTIN_CANDIDATES = listOf(ONLINE_BASE_URL, LAN_BASE_URL)
@@ -97,17 +105,35 @@ object ServerConfig {
         normalize(ordered.first())
     }
 
+    /**
+     * GitHub Contents API 返回 `{"content":"<base64>", ...}`，
+     * 取出 content 解码成原文；不是该格式时原样返回。
+     */
+    private fun unwrapApiContent(raw: String): String {
+        val m = Regex("\"content\"\\s*:\\s*\"([A-Za-z0-9+/=\\\\\\s]+)\"").find(raw) ?: return raw
+        return try {
+            val b64 = m.groupValues[1].replace("\\n", "").replace("\\r", "").replace(" ", "").trim()
+            String(Base64.decode(b64, Base64.DEFAULT), Charsets.UTF_8)
+        } catch (_: Exception) {
+            raw
+        }
+    }
+
     /** 抓取远程配置里的候选地址（candidates 数组优先，其次 online 字段） */
     private fun fetchRemoteCandidates(): List<String> {
-        for (configUrl in ONLINE_CONFIG_URLS) {
+        for (configUrl in configUrls()) {
             try {
                 val conn = (URL(configUrl).openConnection() as HttpURLConnection).apply {
                     connectTimeout = 3000
                     readTimeout = 3000
                     requestMethod = "GET"
+                    // GitHub API 要求 User-Agent，否则 403
+                    setRequestProperty("User-Agent", "qMusic-Android")
+                    setRequestProperty("Accept", "application/vnd.github+json")
                 }
-                val text = conn.inputStream.bufferedReader().use { it.readText() }
+                val raw = conn.inputStream.bufferedReader().use { it.readText() }
                 conn.disconnect()
+                val text = unwrapApiContent(raw)
 
                 val list = ArrayList<String>()
                 // candidates: [ "https://...", "http://..." ]
