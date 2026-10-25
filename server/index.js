@@ -25,7 +25,7 @@ const { spawn } = require('child_process')
 const express = require('express')
 const { router: multiRouter } = require('./multi-source')
 const { router: sodaRouter } = require('./soda-chart')
-const { router: sodaDiscoverRouter } = require('./soda-discover')
+const { router: sodaDiscoverRouter, warmup: warmupSodaPlaylists } = require('./soda-discover')
 
 const PORT = Number(process.env.PORT || 3000)
 const NCM_PORT = Number(process.env.NCM_PORT || 3001)
@@ -126,6 +126,8 @@ async function main() {
     console.log(`  多音源接口            http://<本机IP>:${PORT}/multi/sources`)
     console.log('  ------------------------------------------')
     console.log('')
+    // 歌单池后台预热：磁盘有缓存时只是增量补几十个，没缓存则慢慢建起来
+    warmupSodaPlaylists()
   })
 }
 

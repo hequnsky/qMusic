@@ -37,6 +37,7 @@ import com.qmusic.ui.playlist.LocalMusicScreen
 import com.qmusic.ui.playlist.MyPlaylistsScreen
 import com.qmusic.ui.playlist.PlaylistDetailScreen
 import com.qmusic.ui.playlist.PlaylistSongsScreen
+import com.qmusic.ui.playlist.SodaPlaylistSquareScreen
 import com.qmusic.ui.search.SearchScreen
 import com.qmusic.ui.toplist.ToplistScreen
 import com.qmusic.ui.video.VideoFeedScreen
@@ -55,6 +56,7 @@ fun MainScreen(
     var videoOpen by rememberSaveable { mutableStateOf(false) }
     var playlistDetailId by rememberSaveable { mutableStateOf<Long?>(null) }
     var hotPlaylistOpen by rememberSaveable { mutableStateOf(false) }
+    var sodaSquareOpen by rememberSaveable { mutableStateOf(false) }
     var toplistOpen by rememberSaveable { mutableStateOf(false) }
     var localMusicOpen by rememberSaveable { mutableStateOf(false) }
     var downloadOpen by rememberSaveable { mutableStateOf(false) }
@@ -125,6 +127,7 @@ fun MainScreen(
                     onOpenMorePlaylists = { hotPlaylistOpen = true },
                     onOpenCategory = { category = it },
                     onOpenToplists = { toplistOpen = true },
+                    onOpenSodaSquare = { sodaSquareOpen = true },
                 )
                 1 -> MineScreen(
                     repository = app.repository,
@@ -157,6 +160,18 @@ fun MainScreen(
             onPlayAll = { songs, index ->
                 playerController.play(songs, index)
                 playerOpen = true
+            },
+        )
+    }
+
+    // 汽水歌单广场（覆盖在歌单详情之上，点歌单后进入详情）
+    if (sodaSquareOpen) {
+        SodaPlaylistSquareScreen(
+            repository = app.repository,
+            onBack = { sodaSquareOpen = false },
+            onOpenPlaylist = { id ->
+                sodaSquareOpen = false
+                playlistDetailId = id
             },
         )
     }

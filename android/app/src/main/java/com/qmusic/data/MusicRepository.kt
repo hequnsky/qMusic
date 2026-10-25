@@ -23,6 +23,7 @@ import com.qmusic.data.model.VideoData
 import com.qmusic.data.model.PlaylistDetail
 import com.qmusic.data.model.SodaCharts
 import com.qmusic.data.model.SodaPlaylist
+import com.qmusic.data.model.SodaPlaylistListResponse
 import com.qmusic.data.model.SodaRadio
 import com.qmusic.data.model.SodaToplist
 import com.qmusic.data.model.Song
@@ -344,6 +345,10 @@ class MusicRepository(
     } catch (e: Exception) {
         emptyList()
     }
+
+    /** 带总量的分页版本：歌单广场要显示「共 N 个」并判断是否还有下一页 */
+    suspend fun getSodaPlaylistPage(limit: Int = 30, offset: Int = 0): SodaPlaylistListResponse =
+        api.sodaPlaylists(limit, offset)
 
     /** 汽水歌单详情 → 与网易云歌单一致的结构（详情页/播放全部均无需改动） */
     private suspend fun getSodaPlaylistDetail(id: Long): PlaylistDetail? {

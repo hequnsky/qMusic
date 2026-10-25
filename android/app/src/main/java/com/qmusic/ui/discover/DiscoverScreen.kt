@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
@@ -77,6 +78,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
+/** 首页「汽水精选歌单」一次展示多少个（双行横滑 = 12 列） */
+private const val PLAYLIST_BATCH = 24
+
 /** 汽水品牌红（抖音系），只用于「汽水」角标，不参与主题换色 */
 private val SodaRed = Color(0xFFFE2C55)
 private val SodaRedSoft = Color(0xFFFF6B8A)
@@ -92,6 +96,7 @@ fun DiscoverScreen(
     onOpenMorePlaylists: () -> Unit,
     onOpenCategory: (CategorySpec) -> Unit = {},
     onOpenToplists: () -> Unit = {},
+    onOpenSodaSquare: () -> Unit = {},
 ) {
     val viewModel: DiscoverViewModel = viewModel(
         factory = viewModelFactory {
@@ -110,6 +115,7 @@ fun DiscoverScreen(
     var sodaRadios by remember { mutableStateOf<List<SodaRadio>>(emptyList()) }
     // 歌单池在服务端，客户端只管翻 offset，实现「换一批」
     var playlistOffset by remember { mutableIntStateOf(0) }
+    var sodaPlaylistTotal by remember { mutableIntStateOf(0) }
     var radioBusyId by remember { mutableStateOf<String?>(null) }
 
     // null = 还没加载完；emptyList = 加载完但没数据（含失败）。
@@ -137,9 +143,14 @@ fun DiscoverScreen(
                     .getOrDefault(emptyList())
             }
             launch {
-                sodaPlaylists = runCatching { repository.getSodaPlaylists(limit = 16, offset = 0) }
-                    .onFailure { if (it is CancellationException) throw it }
-                    .getOrDefault(emptyList())
+                val page = runCatching {
+                    repository.getSodaPlaylistPage(limit = PLAYLIST_BATCH, offset = 0)
+                }.onFailure { if (it is CancellationException) throw it }
+                    .getOrNull()
+                if (page != null) {
+                    sodaPlaylists = page.list
+                    sodaPlaylistTotal = page.total
+                }
             }
             launch {
                 sodaRadios = runCatching { repository.getSodaRadios() }
@@ -156,16 +167,19 @@ fun DiscoverScreen(
 
     val swapPlaylists: () -> Unit = {
         scope.launch {
-            val next = playlistOffset + 16
-            var list = repository.getSodaPlaylists(limit = 16, offset = next)
+            val next = playlistOffset + PLAYLIST_BATCH
+            var page = runCatching { repository.getSodaPlaylistPage(limit = PLAYLIST_BATCH, offset = next) }
+                .getOrNull()
             var nextOffset = next
-            if (list.isEmpty()) {
+            if (page == null || page.list.isEmpty()) {
                 // 翻到池子末尾就回绕到开头，保证「换一批」永远有反馈
-                list = repository.getSodaPlaylists(limit = 16, offset = 0)
+                page = runCatching { repository.getSodaPlaylistPage(limit = PLAYLIST_BATCH, offset = 0) }
+                    .getOrNull()
                 nextOffset = 0
             }
-            if (list.isNotEmpty()) {
-                sodaPlaylists = list
+            if (page != null && page.list.isNotEmpty()) {
+                sodaPlaylists = page.list
+                sodaPlaylistTotal = page.total
                 playlistOffset = nextOffset
             }
         }
@@ -215,9 +229,15 @@ fun DiscoverScreen(
             item {
                 SodaSectionHeader(
                     title = "汽水精选歌单",
-                    subtitle = "${sodaPlaylists.size} 个 · 抖音热歌精选",
+                    subtitle = if (sodaPlaylistTotal > sodaPlaylists.size) {
+                        "共 ${sodaPlaylistTotal} 个 · 已显示 ${sodaPlaylists.size} 个"
+                    } else {
+                        "${sodaPlaylists.size} 个 · 抖音热歌精选"
+                    },
                     action = "换一批",
                     onAction = swapPlaylists,
+                    action2 = "全部",
+                    onAction2 = onOpenSodaSquare,
                 )
             }
             item {
@@ -653,6 +673,8 @@ private fun SodaSectionHeader(
     subtitle: String = "",
     action: String? = null,
     onAction: (() -> Unit)? = null,
+    action2: String? = null,
+    onAction2: (() -> Unit)? = null,
 ) {
     val colors = LocalQMusicColors.current
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 20.dp, bottom = 10.dp)) {
@@ -682,6 +704,30 @@ private fun SodaSectionHeader(
                         .clickable(onClick = onAction)
                         .padding(horizontal = 11.dp, vertical = 5.dp),
                 )
+            }
+            if (action2 != null && onAction2 != null) {
+                Spacer(Modifier.width(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .clickable(onClick = onAction2)
+                        .padding(horizontal = 9.dp, vertical = 5.dp),
+                ) {
+                    Text(
+                        action2,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = colors.textPrimary,
+                    )
+                    Icon(
+                        Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
             }
         }
         if (subtitle.isNotBlank()) {
