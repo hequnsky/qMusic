@@ -16,6 +16,79 @@
 
 ---
 
+## [1.24] — 2026-10-25
+
+> 首页接入**汽水音乐（抖音音乐）官方榜单**：榜单区出现带「汽水」角标的热歌榜 / 新歌榜 /
+> 欧美榜 / 音乐人歌曲榜，推荐区新增「汽水音乐 · 抖音热歌」横滑卡片，点歌即播。
+
+### 1. 数据来源（开源项目扒出来的）
+
+参考 `github.com/guohuiyuan/music-lib` 的 `soda/toplist.go`，关键结论：
+
+| 项 | 值 |
+| --- | --- |
+| 榜单接口 | `https://api.qishui.com/luna/pc/charts/{chart_id}`（**无需登录**） |
+| 回退接口 | `https://api5-lf.qishui.com/luna/charts?id=&charge=0` |
+| 必需参数 | `aid=386088&app_name=luna_pc&region=cn&device_id&iid&fp&version_name=3.3.0…` |
+| 必需请求头 | `User-Agent: LunaPC/3.3.0(359450208)` + `x-luna-*-` 三个头 |
+| 榜单目录 | **没有公开目录接口**，官方四个榜的 ID 是内置常量 |
+
+新文件 `server/soda-chart.js` 直连上述接口，转成与 `/multi/*` 完全一致的 Song DTO，
+并缓存 10 分钟（榜单每周四更新，也防用户狂刷）。
+
+### 2. 四个必须记下来的坑
+
+**① 19 位榜单 ID 会被 JS 吃掉精度**
+`7036274230471712007` 超过 `Number.MAX_SAFE_INTEGER`，当 JSON 数字下发会变成
+`7036274230471712000`，客户端拿回来必然查不到。改成对外暴露 `appId`（900001 起），
+真实 chart id 只留在服务端。
+
+**② Go 音乐服务的缓存目录在 `%TEMP%` 下，被系统清理后回源播放全部 502**
+报错是 `open C:\Users\ADMINI~1\AppData\Local\Temp\qmusic-musiclib-cache\soda_xxx.mp3:
+The system cannot find the path specified`。目录启动时建过，之后被清理掉了，
+而下载前不会重建。改用固定目录启动：
+
+```bash
+MUSICLIB_CACHE=<项目>/server/.cache MUSICLIB_PORT=3100 ./qmusic-musiclib.exe
+```
+
+**③ Kotlin 的块注释是可以嵌套的**，注释里写 `/soda/*` 的 `/*` 会开启一层新注释，
+把后面整个文件吞掉，报错却是「Missing '}'」「Unclosed comment」这种完全不相干的位置。
+
+**④ 缓存对象被 `limit` 裁短**：`payload.songs = payload.songs.slice(0,n)` 改的是
+缓存本体，一次带 limit 的请求会把完整榜单永久裁成 n 条。必须复制新数组再返回。
+
+### 3. 改动
+
+- 新增 `server/soda-chart.js`：榜单抓取 + 转 MultiSong + token 生成 + 缓存 + `/soda/toplist`、`/soda/toplist/:id`、`/soda/hot`
+- `server/index.js` 挂载 `/soda` 路由
+- App：`Models.kt` 加汽水榜单模型与 `SodaCharts` 常量；`MusicApiService` 加 3 个接口；
+  `MusicRepository` 加 `getSodaToplists` / `getSodaHotSongs`，并让 `getPlaylistDetail`
+  **按 id 区间分流**到汽水接口（详情页 UI 零改动）
+- 首页 `DiscoverScreen`：汽水榜单前置进榜单横滑区（带红色「汽水」角标）、
+  新增「汽水音乐 · 抖音热歌」卡片区；三个数据源并发拉取，各自独立降级
+- 榜单「更多」页 `ToplistScreen` 同样把汽水四榜置顶
+- 榜单详情页：`playCount=0` 时不再显示「0 次播放」
+
+### 4. 模拟器验证（1080x2424 / SDK 36）
+
+| 检查项 | 结果 |
+| --- | --- |
+| `/soda/toplist` | 200 / 515ms，4 个榜单 |
+| `/soda/hot?limit=12` | 200 / 634ms，12 首真实热歌 |
+| 热歌榜全量 | 50 首；新歌榜 50；欧美榜 50；音乐人榜 26 |
+| 首页榜单区 | 热歌榜 / 新歌榜 / 欧美榜，均带「汽水」角标 |
+| 首页推荐区 | 「汽水音乐 · 抖音热歌」前 12 首，含封面与名次角标 |
+| 点推荐卡片播放 | 进度 00:02 → 00:26 推进 |
+| 点榜单卡片 | 进入详情，50 首真实曲目 |
+| 播放全部 | 正常起播（00:08 / 01:00） |
+| 取流 | `/multi/song/url` 200 → `/multi/stream` 206 `audio/mpeg` |
+
+> 说明：汽水大量曲目带 VIP 标记，未登录时只能拿到 1 分钟试听片段
+> （播放页显示 01:00 即此原因），这是平台限制，不是播放链路问题。
+
+---
+
 ## [1.23] — 2026-10-25
 
 > v1.22 的启动自愈**确实执行了、也确实改了地址**，但用户仍然连不上。

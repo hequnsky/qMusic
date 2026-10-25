@@ -52,8 +52,23 @@ data class Song(
 
     companion object {
         const val SOURCE_NETEASE = "netease"
+        const val SOURCE_SODA = "soda"
         const val SOURCE_LOCAL = "local"
     }
+}
+
+/**
+ * 汽水榜单 ID 约定：服务端把 19 位真实 chart id 映射成 900001 起的连续小整数，
+ * 只有落在这个区间才走 /soda 接口，其它一律按网易云歌单处理。
+ */
+object SodaCharts {
+    const val ID_MIN = 900001L
+    const val ID_MAX = 900999L
+
+    /** 首页推荐区取热歌榜前 N 首 */
+    const val HOT_CHART_ID = 900001L
+
+    fun isSodaChartId(id: Long): Boolean = id in ID_MIN..ID_MAX
 }
 
 /**
@@ -334,6 +349,70 @@ data class Toplist(
     val coverImgUrl: String? = null,
     val updateFrequency: String = "",
     val description: String = "",
+    /** 榜单来源：netease / soda。用于区分点击后走哪个接口 */
+    val source: String = "netease",
+)
+
+// ---------------- 汽水音乐榜单（soda） ----------------
+
+/**
+ * 汽水音乐榜单目录。
+ *
+ * 注意：服务端下发的 id 是 900001 起的小整数（真实 chart id 是 19 位数字，
+ * 超过 JSON 数字安全范围会被截断），chartId 才是汽水的原始 ID。
+ */
+@Serializable
+data class SodaToplistResponse(
+    val ok: Boolean = false,
+    val list: List<SodaToplist> = emptyList(),
+)
+
+@Serializable
+data class SodaToplist(
+    val id: Long = 0,
+    val chartId: String = "",
+    val name: String = "",
+    val coverImgUrl: String? = null,
+    val description: String = "",
+    val updateFrequency: String = "",
+    val trackCount: Int = 0,
+) {
+    fun toToplist(): Toplist = Toplist(
+        id = id,
+        name = name,
+        coverImgUrl = coverImgUrl,
+        updateFrequency = updateFrequency,
+        description = description,
+        source = Song.SOURCE_SODA,
+    )
+}
+
+/** 汽水榜单详情（/soda/toplist/{id} 与 /soda/hot 共用） */
+@Serializable
+data class SodaChartResponse(
+    val ok: Boolean = false,
+    val chart: SodaChartInfo? = null,
+    val songs: List<MultiSong> = emptyList(),
+    val rankings: List<SodaRank> = emptyList(),
+    val error: String? = null,
+)
+
+@Serializable
+data class SodaChartInfo(
+    val id: Long = 0,
+    val chartId: String = "",
+    val name: String = "",
+    val description: String = "",
+    val coverImgUrl: String? = null,
+    val updateFrequency: String = "",
+    val trackCount: Int = 0,
+)
+
+@Serializable
+data class SodaRank(
+    val rank: Int = 0,
+    val rankType: String = "",
+    val rankDelta: Int = 0,
 )
 
 /** 歌单详情响应 */

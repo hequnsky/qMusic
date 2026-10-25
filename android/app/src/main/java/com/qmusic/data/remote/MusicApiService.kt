@@ -15,6 +15,8 @@ import com.qmusic.data.model.SearchHotDetailResponse
 import com.qmusic.data.model.SearchHotResponse
 import com.qmusic.data.model.SearchResponse
 import com.qmusic.data.model.SearchSuggestResponse
+import com.qmusic.data.model.SodaChartResponse
+import com.qmusic.data.model.SodaToplistResponse
 import com.qmusic.data.model.SongDetailResponse
 import com.qmusic.data.model.SongUrlResponse
 import com.qmusic.data.model.ToplistResponse
@@ -27,6 +29,7 @@ import com.qmusic.data.model.VideoUrlResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /** 音乐抓取服务 REST 接口 */
@@ -169,6 +172,23 @@ interface MusicApiService {
     /** 多音源歌词 */
     @GET("multi/lyric")
     suspend fun multiLyric(@Query("s") token: String): MultiLyricResponse
+
+    // ---------------- 汽水音乐榜单（soda，直连 api.qishui.com） ----------------
+
+    /** 汽水官方榜单目录（热歌榜 / 新歌榜 / 欧美榜 / 音乐人歌曲榜） */
+    @GET("soda/toplist")
+    suspend fun sodaToplist(): SodaToplistResponse
+
+    /** 汽水指定榜单的歌曲（limit=0 表示全量） */
+    @GET("soda/toplist/{id}")
+    suspend fun sodaChart(
+        @Path("id") id: Long,
+        @Query("limit") limit: Int = 0,
+    ): SodaChartResponse
+
+    /** 汽水热歌榜前 N 首（首页推荐区用） */
+    @GET("soda/hot")
+    suspend fun sodaHot(@Query("limit") limit: Int = 12): SodaChartResponse
 
     // ---------------- 视频（类抖音信息流） ----------------
 

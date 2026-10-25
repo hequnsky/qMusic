@@ -62,8 +62,10 @@ fun ToplistScreen(
 
     LaunchedEffect(Unit) {
         toplists = try {
-            // 过滤掉车友榜/直播榜/派对榜等非音乐类运营榜，只留真正的音乐榜单
-            repository.getToplists().musicToplists()
+            // 汽水官方榜（热歌/新歌/欧美/音乐人）置顶，后面接网易云音乐类榜单。
+            // 过滤掉车友榜/直播榜/派对榜等非音乐类运营榜，只留真正的音乐榜单。
+            val soda = repository.getSodaToplists().map { it.toToplist() }
+            soda + repository.getToplists().musicToplists()
         } catch (_: Exception) {
             failed = true
             emptyList()

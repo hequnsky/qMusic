@@ -24,6 +24,7 @@ const { spawn } = require('child_process')
 
 const express = require('express')
 const { router: multiRouter } = require('./multi-source')
+const { router: sodaRouter } = require('./soda-chart')
 
 const PORT = Number(process.env.PORT || 3000)
 const NCM_PORT = Number(process.env.NCM_PORT || 3001)
@@ -72,6 +73,8 @@ const app = express()
 app.disable('x-powered-by')
 
 app.use('/multi', multiRouter)
+// 汽水音乐榜单（直连 api.qishui.com，不依赖 musiclib-service，失败不影响其它接口）
+app.use('/soda', sodaRouter)
 
 // 其余请求原样转发给网易云服务
 function proxyToNetease(req, res) {

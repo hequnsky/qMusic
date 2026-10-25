@@ -21,6 +21,8 @@ import com.qmusic.data.model.MusicSource
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.VideoData
 import com.qmusic.data.model.PlaylistDetail
+import com.qmusic.data.model.SodaCharts
+import com.qmusic.data.model.SodaToplist
 import com.qmusic.data.model.Song
 import com.qmusic.data.remote.ApiClient
 import com.qmusic.data.remote.MusicApiService
@@ -274,8 +276,59 @@ class MusicRepository(
     suspend fun getMusicComments(id: Long, limit: Int = 30): List<Comment> =
         api.musicComment(id, limit).comments
 
-    suspend fun getPlaylistDetail(id: Long): PlaylistDetail? =
-        api.playlistDetail(id).playlist.takeIf { it.id != 0L }
+    /**
+     * 歌单 / 榜单详情。
+     *
+     * 汽水音乐榜单（id 落在 900001~900999）走 /soda 接口，其余仍走网易云歌单接口——
+     * 这样榜单详情页、播放全部、收藏等下游逻辑一行都不用改。
+     */
+    suspend fun getPlaylistDetail(id: Long): PlaylistDetail? {
+        if (SodaCharts.isSodaChartId(id)) return getSodaChartDetail(id)
+        return api.playlistDetail(id).playlist.takeIf { it.id != 0L }
+    }
+
+    // ---------------- 汽水音乐榜单 ----------------
+
+    /** 汽水官方榜单目录；失败返回空表（不阻塞首页其它区块） */
+    suspend fun getSodaToplists(): List<SodaToplist> = try {
+        api.sodaToplist().list
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    /** 指定汽水榜单的歌曲（带可播放 token） */
+    suspend fun getSodaChartSongs(id: Long, limit: Int = 0): List<Song> = try {
+        api.sodaChart(id, limit).songs.map { it.toSong() }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    /** 首页推荐区：汽水热歌榜前 N 首 */
+    suspend fun getSodaHotSongs(limit: Int = 12): List<Song> = try {
+        api.sodaHot(limit).songs.map { it.toSong() }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    /** 把汽水榜单包装成与网易云歌单一致的详情结构 */
+    private suspend fun getSodaChartDetail(id: Long): PlaylistDetail? {
+        val resp = try {
+            api.sodaChart(id)
+        } catch (e: Exception) {
+            return null
+        }
+        val info = resp.chart ?: return null
+        val songs = resp.songs.map { it.toSong() }
+        if (songs.isEmpty()) return null
+        return PlaylistDetail(
+            id = id,
+            name = info.name,
+            coverImgUrl = info.coverImgUrl,
+            trackCount = if (info.trackCount > 0) info.trackCount else songs.size,
+            playCount = 0,
+            tracks = songs,
+        )
+    }
 
     // ---------------- 视频（类抖音信息流） ----------------
 

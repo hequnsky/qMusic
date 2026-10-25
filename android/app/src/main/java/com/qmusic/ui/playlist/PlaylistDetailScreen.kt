@@ -186,8 +186,14 @@ private fun PlaylistHeader(detail: PlaylistDetail) {
             overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(8.dp))
+        // 汽水榜单没有播放量概念（playCount=0），只显示曲目数，别写「0 次播放」
+        val countText = if (detail.playCount > 0) {
+            "▶ ${formatPlayCount(detail.playCount)} ${stringResource(R.string.times_played)} · "
+        } else {
+            ""
+        }
         Text(
-            "▶ ${formatPlayCount(detail.playCount)} ${stringResource(R.string.times_played)} · 共 ${detail.trackCount} ${stringResource(R.string.songs)}",
+            "$countText" + "共 ${detail.trackCount} ${stringResource(R.string.songs)}",
             fontSize = 12.sp,
             color = Color.White.copy(alpha = 0.7f),
         )

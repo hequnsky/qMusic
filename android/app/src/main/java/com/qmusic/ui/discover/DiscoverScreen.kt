@@ -69,6 +69,8 @@ import com.qmusic.ui.theme.GradientEnd
 import com.qmusic.ui.theme.GradientStart
 import com.qmusic.ui.theme.LocalQMusicColors
 import com.qmusic.ui.toplist.musicToplists
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 @Composable
 fun DiscoverScreen(
@@ -90,15 +92,30 @@ fun DiscoverScreen(
     val state by viewModel.uiState.collectAsState()
     val colors = LocalQMusicColors.current
     var toplists by remember { mutableStateOf<List<Toplist>?>(null) }
+    // 汽水音乐：官方榜单 + 热歌榜推荐（两者独立降级，任一失败不影响首页其它区块）
+    var sodaCharts by remember { mutableStateOf<List<Toplist>>(emptyList()) }
+    var sodaHot by remember { mutableStateOf<List<Song>>(emptyList()) }
     // null = 还没加载完；emptyList = 加载完但没数据（含失败）。
     // 地址被启动自愈切换后要重拉一次，否则这块会一直停在上一次的结果上。
     val urlVersion by ServerConfig.baseUrlVersion.collectAsState()
     LaunchedEffect(urlVersion) {
         toplists = null
-        toplists = try {
-            repository.getToplists()
-        } catch (_: Exception) {
-            emptyList()
+        sodaCharts = emptyList()
+        sodaHot = emptyList()
+        // 三个来源并发拉，谁先好谁先上，避免一个慢接口拖住整页
+        coroutineScope {
+            val sodaDeferred = async { repository.getSodaToplists().map { it.toToplist() } }
+            val hotDeferred = async { repository.getSodaHotSongs(12) }
+            val ncmDeferred = async {
+                try {
+                    repository.getToplists()
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            }
+            sodaCharts = sodaDeferred.await()
+            sodaHot = hotDeferred.await()
+            toplists = ncmDeferred.await()
         }
     }
 
@@ -120,8 +137,9 @@ fun DiscoverScreen(
         item { ChipsRow(onCategoryClick = { name -> onOpenCategory(categorySpecOf(name)) }) }
 
         item { SectionTitle(title = stringResource(R.string.toplist), onMore = onOpenToplists) }
-        val shownToplists = toplists.orEmpty().musicToplists().take(8)
-        if (toplists == null) {
+        // 汽水榜单排在网易云榜单前面：它是「抖音热歌」的原始出处，用户最想先看到
+        val shownToplists = (sodaCharts + toplists.orEmpty().musicToplists()).take(10)
+        if (toplists == null && sodaCharts.isEmpty()) {
             // 真的还在加载
             item {
                 Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
@@ -147,6 +165,25 @@ fun DiscoverScreen(
                 ) {
                     itemsIndexed(shownToplists, key = { index, item -> "$index-${item.id}" }) { index, toplist ->
                         ToplistCard(toplist = toplist, onClick = { onOpenPlaylist(toplist.id) })
+                    }
+                }
+            }
+        }
+
+        // 汽水热歌推荐：整块没数据就整体隐藏，不留只有标题的空区块
+        if (sodaHot.isNotEmpty()) {
+            item { SectionTitle(title = "汽水音乐 · 抖音热歌") }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    itemsIndexed(sodaHot, key = { index, song -> "soda-$index-${song.id}" }) { index, song ->
+                        SodaSongCard(
+                            song = song,
+                            rank = index + 1,
+                            onClick = { onPlayAll(sodaHot, index) },
+                        )
                     }
                 }
             }
@@ -375,6 +412,21 @@ private fun ToplistCard(toplist: Toplist, onClick: () -> Unit) {
                     .clip(RoundedCornerShape(14.dp)),
                 circle = false,
             )
+            // 汽水榜单单独打标，避免和 60 多个网易云榜单混在一起分不出来
+            if (toplist.source == Song.SOURCE_SODA) {
+                Text(
+                    "汽水",
+                    fontSize = 9.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 8.dp, top = 6.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFFFE2C55))
+                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                )
+            }
             Text(
                 toplist.updateFrequency,
                 fontSize = 9.sp,
@@ -394,6 +446,54 @@ private fun ToplistCard(toplist: Toplist, onClick: () -> Unit) {
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * 汽水热歌卡片（首页推荐区）。
+ * 名次直接角标在图左上，前三名用汽水品牌红强调。
+ */
+@Composable
+private fun SodaSongCard(song: Song, rank: Int, onClick: () -> Unit) {
+    val colors = LocalQMusicColors.current
+    Column(
+        modifier = Modifier.width(116.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick),
+    ) {
+        Box {
+            CoverWithPlaceholder(
+                url = song.coverUrl,
+                modifier = Modifier.size(116.dp).clip(RoundedCornerShape(14.dp)),
+                circle = false,
+            )
+            Text(
+                "$rank",
+                fontSize = 10.sp,
+                color = Color.White,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(6.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(if (rank <= 3) Color(0xFFFE2C55) else Color.Black.copy(alpha = 0.5f))
+                    .padding(horizontal = 6.dp, vertical = 1.dp),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            song.name,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            song.artistName.ifBlank { "未知歌手" },
+            fontSize = 10.sp,
+            color = colors.textSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

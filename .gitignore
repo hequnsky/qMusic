@@ -44,3 +44,6 @@ server/musiclib-service/qmusic-musiclib.exe
 
 # ---------- WorkBuddy 内部资产（日志/技能，不上公开仓库） ----------
 .workbuddy/
+
+# Go 音乐服务下载缓存（含解密后的音频，不入库）
+server/.cache/
