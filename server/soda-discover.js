@@ -277,7 +277,8 @@ const detailCache = new Map() // playlistId → { at, payload }
 async function fetchPlaylistDetail(playlistId, { limit = 100, force = false } = {}) {
   const key = String(playlistId)
   const hit = detailCache.get(key)
-  if (!force && hit && Date.now() - hit.at < DETAIL_TTL) {
+  // 缓存里攒的比这次要的少（比如先被 limit=10 的请求填过），不能直接拿去交差，得重新拉满
+  if (!force && hit && Date.now() - hit.at < DETAIL_TTL && hit.payload.songs.length >= limit) {
     const cached = hit.payload
     return {
       ...cached,

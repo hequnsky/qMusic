@@ -5,6 +5,7 @@
 
 | 当前版本 | 更新日志 | APK 产物名 |
 | --- | --- | --- |
+| **1.27** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.27-release.apk` |
 | **1.26** | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.26-release.apk` |
 | 1.25 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.25-release.apk` |
 | 1.24 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | `qMusic-1.24-release.apk` |
