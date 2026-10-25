@@ -16,6 +16,65 @@
 
 ---
 
+## [1.23] — 2026-10-25
+
+> v1.22 的启动自愈**确实执行了、也确实改了地址**，但用户仍然连不上。
+> 本版在本地模拟器上完整复现并定位到**三处更深的断点**，全部修掉。
+
+### 1. 复现方法（可复用）
+
+模拟器的 NAT 能访问宿主机 IP，所以直接把 prefs 写成 `http://192.168.0.56:3300/` **复现不出来**
+（探测会判定可用，自愈正确地不动作）。必须换一个模拟器真的到不了的地址：
+
+```bash
+# 先用 nc 确认不可达（预期 Timeout）
+adb shell "printf 'GET / HTTP/1.0\r\n\r\n' | toybox nc -w 3 192.168.99.99 3300"
+# 覆盖 prefs 后启动，模拟「移动数据下拿着局域网地址」
+adb push bad_prefs.xml /data/local/tmp/qm_bad.xml
+adb shell run-as com.qmusic cp /data/local/tmp/qm_bad.xml shared_prefs/qmusic_server.xml
+adb shell monkey -p com.qmusic -c android.intent.category.LAUNCHER 1
+```
+
+关键判据不是「prefs 有没有变」，而是 **`adb logcat | grep "E DiscoverViewModel"` 是否为 0**。
+
+### 2. 三个根因
+
+| # | 根因 | 表现 |
+| --- | --- | --- |
+| ① | `MusicRepository` 在 `Application.onCreate` 里接收 `ApiClient.service` 并**永久持有**。自愈救的是 `ApiClient` 里的新 service，仓库手里还是那个指向死地址的旧实例 | 自愈生效、prefs 已更新，**请求却仍打进旧地址**。日志呈铁证：`urlAtStart=隧道地址` 而异常是 `failed to connect to /192.168.99.99` |
+| ② | `DiscoverViewModel.refresh()` 不取消上一次请求。旧地址的请求 15 秒后超时失败，把**已经用新地址加载成功的界面重新刷成「加载失败」** | 自愈 2 秒完成，页面 15 秒后翻成错误态，用户以为根本没修 |
+| ③ | 排行榜用 `LaunchedEffect(Unit)` 只拉一次，不跟随地址变更；且 `shownToplists.isEmpty()` 时**空态被画成了加载转圈** | 排行榜永远转圈，无法区分「在加载」和「已经失败」 |
+
+### 3. 改法
+
+- **`MusicRepository` 改为 `private val api get() = ApiClient.service`**，每次访问都取当前生效的实例（根因①）
+- **`ApiClient` 新增 `UrlHealInterceptor`**：连接类异常时若地址已被换掉，就**用新地址自动重试一次**。
+  这是网络层兜底，覆盖排行榜 / 搜索 / 歌单详情等所有入口，不必每个 ViewModel 各自订阅
+- **`connectTimeout` 15s → 5s**：局域网 8ms、隧道 1.3s，5s 足够；同时也是「触发兜底重试」的最长等待
+- **`refresh()` 用 `refreshJob.cancel()` 取消上一次**，并显式 rethrow `CancellationException`（否则被取消的请求会把失败态写进界面）；
+  失败时若发现 `ApiClient.baseUrl` 已变，则**自动重试一次**（只允许一层，防死循环）
+- **`ServerConfig.baseUrlChanges`（SharedFlow，replay=0 会丢事件）→ `baseUrlVersion`（自增版本号 StateFlow）**。
+  `replay=1` 会让每个新建 ViewModel 白刷一次，用「消费方记录已读版本」既不丢也不重复
+- **排行榜三态**：`null=加载中 / empty=没取到（显示提示文案） / 有数据=卡片`，并 `LaunchedEffect(urlVersion)` 跟随地址重拉
+
+### 4. 模拟器实测（PJA / 1080×2424 / SDK 36）
+
+| 场景 | 期望 | 结果 |
+| --- | --- | --- |
+| prefs = `192.168.99.99:3300`（不可达）启动 | 自愈切到隧道，首页正常 | **2 秒**切换，首屏完整出数据 ✅ |
+| 同上，观察失败日志 | 不应出现失败态 | `grep -c "E DiscoverViewModel"` = **0** ✅ |
+| 冷启动（prefs 已是隧道） | 首屏直接用隧道 | 首次请求即隧道，接口 563–1169ms 全 200 ✅ |
+| 排行榜 | 不转圈，出三大榜 | 飙升榜 / 新歌榜 / 原创榜 ✅ |
+| 搜索 | 建议 + 全量结果 | 输入 jay → 30 首，含周杰伦《想你就写信》✅ |
+| 播放 | 真正的音频流 | 进度 00:05 → 00:30 推进，封面旋转 ✅ |
+| prefs = `192.168.0.56`（**模拟器可达**） | **不动作** | prefs 不变（自愈正确判断，没误切）✅ |
+
+### 5. 产物
+
+`qMusic-1.23-release.apk` / `qMusic-1.23-debug.apk`，覆盖安装即可，无需手动改地址。
+
+---
+
 ## [1.22] — 2026-10-24
 
 > 修复「手机用移动数据时 App 连不上」：prefs 里存着局域网地址，切到 4G/5G 必然不可达，

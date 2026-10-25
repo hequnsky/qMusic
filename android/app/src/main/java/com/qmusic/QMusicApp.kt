@@ -37,7 +37,6 @@ class QMusicApp : Application() {
 
         val database = AppDatabase.get(this)
         repository = MusicRepository(
-            api = ApiClient.service,
             favoriteDao = database.favoriteDao(),
             historyDao = database.historyDao(),
             playlistDao = database.playlistDao(),

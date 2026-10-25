@@ -22,6 +22,7 @@ import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.VideoData
 import com.qmusic.data.model.PlaylistDetail
 import com.qmusic.data.model.Song
+import com.qmusic.data.remote.ApiClient
 import com.qmusic.data.remote.MusicApiService
 import com.qmusic.util.LrcParser
 import kotlinx.coroutines.flow.Flow
@@ -30,11 +31,20 @@ import retrofit2.Response
 
 /** 数据仓库：统一聚合远程音乐接口与本地收藏/历史 */
 class MusicRepository(
-    private val api: MusicApiService,
     private val favoriteDao: FavoriteDao,
     private val historyDao: HistoryDao,
     private val playlistDao: PlaylistDao,
 ) {
+
+    /**
+     * 每次访问都取**当前生效**的 Retrofit service。
+     *
+     * 不能用构造时注入的实例：启动自愈（或用户手动切换地址）会重建 service，
+     * 而注入进来的旧实例仍然指向那个失效地址，表现为「地址明明已经切好了，
+     * 请求却还打进旧地址」——首页永远报「加载失败」，用户以为没修好。
+     */
+    private val api: MusicApiService
+        get() = ApiClient.service
 
     // ---------- 远程 ----------
 

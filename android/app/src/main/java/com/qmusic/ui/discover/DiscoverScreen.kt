@@ -55,6 +55,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.qmusic.R
 import com.qmusic.data.MusicRepository
+import com.qmusic.data.local.ServerConfig
 import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.Song
 import com.qmusic.data.model.Toplist
@@ -89,7 +90,11 @@ fun DiscoverScreen(
     val state by viewModel.uiState.collectAsState()
     val colors = LocalQMusicColors.current
     var toplists by remember { mutableStateOf<List<Toplist>?>(null) }
-    LaunchedEffect(Unit) {
+    // null = 还没加载完；emptyList = 加载完但没数据（含失败）。
+    // 地址被启动自愈切换后要重拉一次，否则这块会一直停在上一次的结果上。
+    val urlVersion by ServerConfig.baseUrlVersion.collectAsState()
+    LaunchedEffect(urlVersion) {
+        toplists = null
         toplists = try {
             repository.getToplists()
         } catch (_: Exception) {
@@ -116,10 +121,22 @@ fun DiscoverScreen(
 
         item { SectionTitle(title = stringResource(R.string.toplist), onMore = onOpenToplists) }
         val shownToplists = toplists.orEmpty().musicToplists().take(8)
-        if (shownToplists.isEmpty()) {
+        if (toplists == null) {
+            // 真的还在加载
             item {
                 Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = GradientStart, modifier = Modifier.size(22.dp))
+                }
+            }
+        } else if (shownToplists.isEmpty()) {
+            // 加载完成但没有数据：不要继续转圈假装还在加载，否则用户永远等下去
+            item {
+                Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "榜单暂时取不到，稍后下拉重试",
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                    )
                 }
             }
         } else {

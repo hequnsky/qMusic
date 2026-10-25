@@ -6,9 +6,9 @@ import com.qmusic.BuildConfig
 import com.qmusic.data.remote.ApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
@@ -53,11 +53,14 @@ object ServerConfig {
             ?: DEFAULT_BASE_URL
 
     /**
-     * 服务地址变更通知（手动切换 / 启动自愈 / 一键切换线上环境都会触发）。
-     * 界面据此重新加载，避免「地址已经修好了但页面还停在加载失败」。
+     * 服务地址变更**版本号**（手动切换 / 启动自愈 / 一键切换线上环境都会 +1）。
+     *
+     * 为什么不用 SharedFlow 广播地址：`replay=0` 的 SharedFlow 在「自愈比界面订阅更早完成」
+     * 时事件直接丢弃，界面永远收不到；`replay=1` 又会让每个新建的 ViewModel 都收到历史值、
+     * 白刷一次。用自增版本号 + 消费方记录已读值，既不丢事件也不重复触发。
      */
-    private val _baseUrlChanges = MutableSharedFlow<String>(extraBufferCapacity = 4)
-    val baseUrlChanges: SharedFlow<String> = _baseUrlChanges.asSharedFlow()
+    private val _baseUrlVersion = MutableStateFlow(0L)
+    val baseUrlVersion: StateFlow<Long> = _baseUrlVersion.asStateFlow()
 
     fun setBaseUrl(context: Context, url: String) {
         val normalized = if (url.endsWith("/")) url else "$url/"
@@ -66,7 +69,7 @@ object ServerConfig {
             .putString(KEY_BASE_URL, normalized)
             .apply()
         ApiClient.updateBaseUrl(normalized)
-        _baseUrlChanges.tryEmit(normalized)
+        _baseUrlVersion.value += 1
     }
 
     /**
