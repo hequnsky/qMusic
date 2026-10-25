@@ -69,6 +69,15 @@ object SodaCharts {
     const val HOT_CHART_ID = 900001L
 
     fun isSodaChartId(id: Long): Boolean = id in ID_MIN..ID_MAX
+
+    /**
+     * 汽水歌单/电台的真实 id 是 19 位雪花号（约 7.0e18），
+     * 网易云歌单 id 最大也就 10 位（约 1.8e9），两者不会撞。
+     * 用「≥ 1e15」做分界，既能覆盖汽水所有 id，也不会误伤其它平台。
+     */
+    const val PLAYLIST_ID_MIN = 1_000_000_000_000_000L
+
+    fun isSodaPlaylistId(id: Long): Boolean = id >= PLAYLIST_ID_MIN
 }
 
 /**
@@ -413,6 +422,71 @@ data class SodaRank(
     val rank: Int = 0,
     val rankType: String = "",
     val rankDelta: Int = 0,
+)
+
+// ---------------- 汽水音乐歌单 / 电台（soda discover） ----------------
+
+/** 汽水精选歌单列表（/soda/playlists） */
+@Serializable
+data class SodaPlaylistListResponse(
+    val ok: Boolean = false,
+    val total: Int = 0,
+    val list: List<SodaPlaylist> = emptyList(),
+)
+
+/**
+ * 汽水歌单。id 是 19 位雪花号，服务端以**字符串**下发（JSON 数字会丢精度），
+ * `longId` 负责转成页面主键（19 位仍在 Long 范围内）。
+ */
+@Serializable
+data class SodaPlaylist(
+    val id: String = "",
+    val name: String = "",
+    val coverUrl: String? = null,
+    val description: String = "",
+    val trackCount: Int = 0,
+    val playCount: Long = 0,
+    val collectCount: Long = 0,
+    val creator: String = "",
+    val source: String = Song.SOURCE_SODA,
+) {
+    val longId: Long get() = id.toLongOrNull() ?: 0L
+}
+
+/** 汽水歌单详情（/soda/playlist/{id} 与 /soda/radio/{id} 共用） */
+@Serializable
+data class SodaPlaylistResponse(
+    val ok: Boolean = false,
+    val playlist: SodaPlaylistInfo? = null,
+    val songs: List<MultiSong> = emptyList(),
+    val error: String? = null,
+)
+
+@Serializable
+data class SodaPlaylistInfo(
+    val id: String = "",
+    val name: String = "",
+    val coverImgUrl: String? = null,
+    val description: String = "",
+    val trackCount: Int = 0,
+    val playCount: Long = 0,
+    val creator: String = "",
+)
+
+/** 汽水电台目录（/soda/radios） */
+@Serializable
+data class SodaRadioListResponse(
+    val ok: Boolean = false,
+    val list: List<SodaRadio> = emptyList(),
+)
+
+@Serializable
+data class SodaRadio(
+    val id: String = "",
+    val name: String = "",
+    val description: String = "",
+    val coverUrl: String? = null,
+    val source: String = Song.SOURCE_SODA,
 )
 
 /** 歌单详情响应 */

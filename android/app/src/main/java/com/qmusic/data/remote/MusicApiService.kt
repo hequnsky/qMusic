@@ -16,6 +16,9 @@ import com.qmusic.data.model.SearchHotResponse
 import com.qmusic.data.model.SearchResponse
 import com.qmusic.data.model.SearchSuggestResponse
 import com.qmusic.data.model.SodaChartResponse
+import com.qmusic.data.model.SodaPlaylistListResponse
+import com.qmusic.data.model.SodaPlaylistResponse
+import com.qmusic.data.model.SodaRadioListResponse
 import com.qmusic.data.model.SodaToplistResponse
 import com.qmusic.data.model.SongDetailResponse
 import com.qmusic.data.model.SongUrlResponse
@@ -189,6 +192,34 @@ interface MusicApiService {
     /** 汽水热歌榜前 N 首（首页推荐区用） */
     @GET("soda/hot")
     suspend fun sodaHot(@Query("limit") limit: Int = 12): SodaChartResponse
+
+    /**
+     * 汽水精选歌单（服务端从发现流累积去重，池子有 60+ 个）。
+     * offset 用于「换一批」：服务端按 offset 切片，不需要客户端自己攒。
+     */
+    @GET("soda/playlists")
+    suspend fun sodaPlaylists(
+        @Query("limit") limit: Int = 24,
+        @Query("offset") offset: Int = 0,
+    ): SodaPlaylistListResponse
+
+    /** 汽水歌单详情（19 位真实 id） */
+    @GET("soda/playlist/{id}")
+    suspend fun sodaPlaylist(
+        @Path("id") id: Long,
+        @Query("limit") limit: Int = 100,
+    ): SodaPlaylistResponse
+
+    /** 汽水电台目录 */
+    @GET("soda/radios")
+    suspend fun sodaRadios(): SodaRadioListResponse
+
+    /** 汽水电台歌曲（无限流，服务端累积若干轮去重） */
+    @GET("soda/radio/{id}")
+    suspend fun sodaRadio(
+        @Path("id") id: Long,
+        @Query("limit") limit: Int = 30,
+    ): SodaPlaylistResponse
 
     // ---------------- 视频（类抖音信息流） ----------------
 

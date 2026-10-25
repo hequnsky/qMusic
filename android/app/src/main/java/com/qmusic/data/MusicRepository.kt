@@ -22,6 +22,8 @@ import com.qmusic.data.model.Playlist
 import com.qmusic.data.model.VideoData
 import com.qmusic.data.model.PlaylistDetail
 import com.qmusic.data.model.SodaCharts
+import com.qmusic.data.model.SodaPlaylist
+import com.qmusic.data.model.SodaRadio
 import com.qmusic.data.model.SodaToplist
 import com.qmusic.data.model.Song
 import com.qmusic.data.remote.ApiClient
@@ -284,6 +286,7 @@ class MusicRepository(
      */
     suspend fun getPlaylistDetail(id: Long): PlaylistDetail? {
         if (SodaCharts.isSodaChartId(id)) return getSodaChartDetail(id)
+        if (SodaCharts.isSodaPlaylistId(id)) return getSodaPlaylistDetail(id)
         return api.playlistDetail(id).playlist.takeIf { it.id != 0L }
     }
 
@@ -328,6 +331,55 @@ class MusicRepository(
             playCount = 0,
             tracks = songs,
         )
+    }
+
+    // ---------------- 汽水音乐歌单 / 电台 ----------------
+
+    /**
+     * 汽水精选歌单。服务端把发现流累积成池子（60+ 个），
+     * offset 用于「换一批」，失败返回空表不阻塞首页。
+     */
+    suspend fun getSodaPlaylists(limit: Int = 24, offset: Int = 0): List<SodaPlaylist> = try {
+        api.sodaPlaylists(limit, offset).list
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    /** 汽水歌单详情 → 与网易云歌单一致的结构（详情页/播放全部均无需改动） */
+    private suspend fun getSodaPlaylistDetail(id: Long): PlaylistDetail? {
+        val resp = try {
+            api.sodaPlaylist(id)
+        } catch (e: Exception) {
+            return null
+        }
+        val songs = resp.songs.map { it.toSong() }
+        if (songs.isEmpty()) return null
+        val info = resp.playlist
+        return PlaylistDetail(
+            id = id,
+            name = info?.name?.ifBlank { null } ?: "汽水歌单",
+            coverImgUrl = info?.coverImgUrl ?: songs.first().coverUrl,
+            trackCount = info?.trackCount?.takeIf { it > 0 } ?: songs.size,
+            playCount = info?.playCount ?: 0,
+            tracks = songs,
+        )
+    }
+
+    /** 汽水电台目录；失败返回空表 */
+    suspend fun getSodaRadios(): List<SodaRadio> = try {
+        api.sodaRadios().list
+    } catch (e: Throwable) {
+        // 用 Throwable 而不是 Exception：解析层偶尔抛的是 Error（如 NoClassDefFoundError），
+        // 只捕 Exception 会让「电台区整体消失」且没有一行日志，排查时完全看不到线索。
+        android.util.Log.w("MusicRepository", "getSodaRadios 失败: ${e.message}")
+        emptyList()
+    }
+
+    /** 电台歌曲：用于「点电台即播」，不需要单独的详情页 */
+    suspend fun getSodaRadioSongs(id: Long, limit: Int = 30): List<Song> = try {
+        api.sodaRadio(id, limit).songs.map { it.toSong() }
+    } catch (e: Exception) {
+        emptyList()
     }
 
     // ---------------- 视频（类抖音信息流） ----------------

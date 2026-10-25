@@ -363,4 +363,6 @@ router.get('/hot', async (req, res) => {
   }
 })
 
-module.exports = { CHARTS, fetchChart, listCharts, router }
+// toSongDTO / encodeToken / coverOf 也被 soda-discover.js 复用：
+// 歌单和榜单拿到的 track 结构完全一致，转换逻辑没必要写两遍。
+module.exports = { CHARTS, fetchChart, listCharts, router, toSongDTO, encodeToken, coverOf }

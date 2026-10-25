@@ -10,6 +10,7 @@ import com.qmusic.data.model.Song
 import com.qmusic.data.remote.ApiClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -72,7 +73,13 @@ class DiscoverViewModel(private val repository: MusicRepository) : ViewModel() {
             val urlAtStart = ApiClient.baseUrl
             try {
                 if (heroPool.isEmpty()) {
-                    heroPool = repository.getPersonalizedPlaylists(10)
+                    // 首次进页面偶发拿到空列表（网易云偶发返回空 result），
+                    // 不重试的话「每日推荐」会一直停在占位文案上，重试一次便宜又有效。
+                    heroPool = runCatching { repository.getPersonalizedPlaylists(10) }.getOrDefault(emptyList())
+                    if (heroPool.isEmpty()) {
+                        delay(800)
+                        heroPool = runCatching { repository.getPersonalizedPlaylists(10) }.getOrDefault(emptyList())
+                    }
                 }
                 val currentId = _uiState.value.hero?.id
                 // 优先换到另一个歌单；池里只有一个（或首次）时就用第一个
