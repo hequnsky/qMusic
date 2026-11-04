@@ -1,0 +1,107 @@
+name: 云端服务定时重启 / 探活
+
+# 用途：qMusic 后端跑在 Render 上（见根目录 render.yaml），本 workflow 负责
+#   1) 每天北京时间 01:00 重启一次线上服务（Render 重新部署）
+#   2) 每小时探活一次，服务挂了立刻自动重建（不等到凌晨）
+#   3) 支持手动触发：Actions → 本 workflow → Run workflow
+#
+# 需要在仓库 Settings → Secrets and variables → Actions 里配置：
+#   QMUSIC_BASE_URL      线上地址，如 https://qmusic-server.onrender.com
+#   RENDER_DEPLOY_HOOK   Render 服务页 → Settings → Deploy Hook 复制到的完整 URL
+#
+# 说明：Render 的 Deploy Hook 触发的是「重新构建 + 部署」，等价于一次干净重启。
+#      耗时通常 2~5 分钟，本 workflow 会自动轮询直到服务恢复健康。
+
+on:
+  schedule:
+    # UTC 17:00 = 北京时间次日 01:00
+    - cron: '0 17 * * *'
+    # 每小时整点探活（GitHub 免费/public 仓库额度充足；私有仓库注意分钟数）
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_restart:
+        description: '忽略探活结果，直接触发一次重启'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qmusic-cloud-cron
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    name: 探活 + 按需重启
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE_URL: ${{ secrets.QMUSIC_BASE_URL }}
+      DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+    steps:
+      - name: 检查 Secrets
+        id: cfg
+        run: |
+          ok=1
+          if [ -z "${BASE_URL:-}" ]; then
+            echo "::warning::未配置 QMUSIC_BASE_URL，本次跳过（可在 Actions Secrets 中添加）"
+            ok=0
+          fi
+          if [ -z "${DEPLOY_HOOK:-}" ]; then
+            echo "::warning::未配置 RENDER_DEPLOY_HOOK，本次跳过"
+            ok=0
+          fi
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+      - name: 探活
+        id: probe
+        if: steps.cfg.outputs.ok == '1'
+        run: |
+          BASE="${BASE_URL%/}"
+          # 免费实例休眠后首个请求要冷启动（约 50s），超时给足
+          code=$(curl -s -o /tmp/probe.json -w '%{http_code}' --max-time 90 "$BASE/personalized?limit=1" || true)
+          code=${code:-000}
+          echo "HTTP $code"
+          head -c 300 /tmp/probe.json 2>/dev/null || true
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+      - name: 判定是否需要重启
+        id: decide
+        if: steps.cfg.outputs.ok == '1'
+        run: |
+          reason=""
+          if [ "${{ steps.probe.outputs.code }}" != "200" ]; then
+            reason="健康检查未通过（HTTP ${{ steps.probe.outputs.code }}）"
+          elif [ "${{ github.event.schedule }}" = "0 17 * * *" ]; then
+            reason="每日 01:00（北京时间）计划重启"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force_restart }}" = "true" ]; then
+            reason="手动触发重启"
+          fi
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "结论：${reason:-服务健康，无需重启}"
+
+      - name: 触发 Render 重新部署
+        if: steps.decide.outputs.reason != ''
+        run: |
+          echo "重启原因：${{ steps.decide.outputs.reason }}"
+          curl -fsS -X POST "$DEPLOY_HOOK" -o /tmp/deploy.json
+          head -c 500 /tmp/deploy.json || true
+
+      - name: 等待服务恢复
+        if: steps.decide.outputs.reason != ''
+        run: |
+          BASE="${BASE_URL%/}"
+          for i in $(seq 1 24); do
+            sleep 20
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$BASE/personalized?limit=1" || true)
+            code=${code:-000}
+            echo "[$i/24] HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "✅ 服务已恢复"
+              exit 0
+            fi
+          done
+          echo "::error::等待 8 分钟仍未恢复，请到 Render 控制台查看部署日志"
+          exit 1

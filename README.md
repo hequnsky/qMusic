@@ -174,6 +174,32 @@ cd android
 - 网易云接口从 Render 海外节点访问基本可用；若所在网络对 `*.onrender.com` 不通，
   改用方式二。
 
+#### 定时重启与自愈（GitHub Actions，不依赖任何本机电脑）
+
+仓库自带 [`.github/workflows/qmusic-cloud-cron.yml`](.github/workflows/qmusic-cloud-cron.yml)：
+
+| 触发 | 行为 |
+| --- | --- |
+| 每天 UTC 17:00（北京时间 01:00） | 调 Render Deploy Hook 重新部署，等价于一次干净重启 |
+| 每小时整点 | 探活 `GET /personalized?limit=1`，非 200 才重启（不等到凌晨） |
+| 手动 `workflow_dispatch` | 忽略探活结果强制重启 |
+
+配置两个仓库 Secret（Settings → Secrets and variables → Actions）：
+
+| Secret | 取值 |
+| --- | --- |
+| `QMUSIC_BASE_URL` | `https://<服务名>.onrender.com` |
+| `RENDER_DEPLOY_HOOK` | Render 服务页 → Settings → Deploy Hook 完整 URL |
+
+> 部署完成后，把 `https://<服务名>.onrender.com/` 写进根目录
+> [`server-address.json`](server-address.json) 的 `online` 与 `candidates`，
+> App 点「一键切换线上环境」即可切过去，不需要发版。
+>
+> ⚠️ Render 免费实例 15 分钟无访问会休眠（冷启动约 50 秒），且每月 750 小时额度。
+> 想让它 7×24 不休眠需升级 Starter 实例；若接受用额度换常驻，可把 workflow 的
+> `schedule` 再加一条 `- cron: '*/10 * * * *'` 做保活（10 分钟一探，全部时间约 744 小时/月，
+> 已接近 750 上限，谨慎开启）。
+
 ### 方式二：Cloudflare 临时隧道（零注册，立即可用）
 
 不想注册 Render 时，本机跑一个隧道即可秒级获得公网 HTTPS 地址：

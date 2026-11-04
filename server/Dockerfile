@@ -34,8 +34,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# 网关源码
-COPY index.js multi-source.js ./
+# 网关源码（顶层全部 .js，漏一个就会 Cannot find module 启动失败）
+COPY index.js multi-source.js soda-chart.js soda-discover.js soda-match.js ./
 
 # Go 多音源产物（go build 产物自带可执行位，COPY 保留）
 COPY --from=go-builder /out/qmusic-musiclib ./musiclib-service/qmusic-musiclib

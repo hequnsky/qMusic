@@ -1,0 +1,12 @@
+# 构建上下文瘦身 —— 本地 .cache 有 ~200MB、Windows 版 Go 二进制 12MB，
+# 不排除会让 Render 每次构建都上传几百 MB，很容易超时。
+node_modules
+npm-debug.log*
+.cache
+*.log
+env
+.env*
+
+# 宿主机编译的 Windows 二进制，容器里由 go-builder 阶段重新编译
+musiclib-service/*.exe
+musiclib-service/qmusic-musiclib
