@@ -42,22 +42,19 @@ jobs:
       DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
     steps:
       - name: 检查 Secrets
-        id: cfg
         run: |
-          ok=1
-          if [ -z "${BASE_URL:-}" ]; then
-            echo "::warning::未配置 QMUSIC_BASE_URL，本次跳过（可在 Actions Secrets 中添加）"
-            ok=0
+          missing=""
+          [ -z "${BASE_URL:-}" ]    && missing="$missing QMUSIC_BASE_URL"
+          [ -z "${DEPLOY_HOOK:-}" ] && missing="$missing RENDER_DEPLOY_HOOK"
+          if [ -n "$missing" ]; then
+            echo "::error::缺少 Secrets:$missing"
+            echo "定时任务当前是空跑（什么都不做）。请到 Settings → Secrets and variables → Actions 添加后重跑。"
+            exit 1
           fi
-          if [ -z "${DEPLOY_HOOK:-}" ]; then
-            echo "::warning::未配置 RENDER_DEPLOY_HOOK，本次跳过"
-            ok=0
-          fi
-          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          echo "Secrets 齐全：$BASE_URL"
 
       - name: 探活
         id: probe
-        if: steps.cfg.outputs.ok == '1'
         run: |
           BASE="${BASE_URL%/}"
           # 免费实例休眠后首个请求要冷启动（约 50s），超时给足
@@ -69,7 +66,6 @@ jobs:
 
       - name: 判定是否需要重启
         id: decide
-        if: steps.cfg.outputs.ok == '1'
         run: |
           reason=""
           if [ "${{ steps.probe.outputs.code }}" != "200" ]; then
