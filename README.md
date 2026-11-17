@@ -160,28 +160,16 @@ cd android
 
 ## 云端部署（线上环境）
 
-后端服务支持两种「公网可达」方式，任选其一：
-
-### 方式一：Render 一键部署（推荐，固定域名）
-
-仓库根目录的 [`render.yaml`](render.yaml) 已配置好 Blueprint，
-点击上方 **Deploy to Render** 按钮 → 授权 → 自动完成构建部署，
-得到固定域名 `https://<name>.onrender.com`。
-
-- 免费实例 15 分钟无访问会休眠，首次唤醒约 50 秒；
-- 多阶段 Docker 构建见 [`server/Dockerfile`](server/Dockerfile)：
-  Go 多音源服务 + Node 网关打进同一镜像，单容器双进程；
-- 网易云接口从 Render 海外节点访问基本可用；若所在网络对 `*.onrender.com` 不通，
-  改用方式二。
-
-> 部署完成后，把 `https://<服务名>.onrender.com/` 写进根目录
-> [`server-address.json`](server-address.json) 的 `online` 与 `candidates`，
-> App 点「一键切换线上环境」即可切过去，不需要发版。
+> ⚠️ **云端部署已停用（2026-11-17）**：仓库根目录的 `render.yaml` 蓝图已移除，
+> GitHub Actions 定时任务也已删除，当前不存在任何云端常驻服务。
+> 需要恢复时从 git 历史取回 `render.yaml` 与 `.github/workflows/qmusic-cloud-cron.yml`
+> （删除前最后一个 commit 为 `f072fa0`）。
+> [`server/Dockerfile`](server/Dockerfile) 保留，仍可用于任意容器平台手工构建
+> （Go 多音源 + Node 网关单镜像双进程）。
 >
-> ⚠️ Render 免费实例 15 分钟无访问会休眠（冷启动约 50 秒），7×24 常驻需升级 Starter 实例。
-> 本机侧的自启脚本见 [`start-server.cmd`](start-server.cmd)（双击即用，进程不随终端退出）。
+> 本机自启见 [`start-server.cmd`](start-server.cmd)，双击即用。
 
-### 方式二：Cloudflare 临时隧道（零注册，立即可用）
+### 方式：Cloudflare 临时隧道（零注册，立即可用）
 
 不想注册 Render 时，本机跑一个隧道即可秒级获得公网 HTTPS 地址：
 
